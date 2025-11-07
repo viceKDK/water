@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useRef } from 'react';
 import {
   View,
   Text,
@@ -18,24 +18,31 @@ import * as Haptics from 'expo-haptics';
 
 import { useApp } from '../context/AppContext';
 import CustomContainerModal from './CustomContainerModal';
+import DatabaseService from '../services/DatabaseService';
 
 const { width, height } = Dimensions.get('window');
 
 const HomeScreen = () => {
-  const { 
-    currentIntake, 
-    dailyGoal, 
-    containers, 
-    loading, 
-    logWater, 
+  const {
+    currentIntake,
+    dailyGoal,
+    containers,
+    loading,
+    logWater,
     addContainer,
   } = useApp();
 
   const [animatedValue] = useState(new Animated.Value(0));
   const [showContainerModal, setShowContainerModal] = useState(false);
-  
+  const [streak, setStreak] = useState(0);
+  const [splashAnimations, setSplashAnimations] = useState([]);
+
   const progressPercentage = Math.min((currentIntake / dailyGoal) * 100, 100);
-  
+
+  useEffect(() => {
+    loadStreak();
+  }, []);
+
   useEffect(() => {
     Animated.timing(animatedValue, {
       toValue: progressPercentage,
@@ -43,6 +50,15 @@ const HomeScreen = () => {
       useNativeDriver: false,
     }).start();
   }, [currentIntake]);
+
+  const loadStreak = async () => {
+    try {
+      const streakDays = await DatabaseService.getStreakDays();
+      setStreak(streakDays);
+    } catch (error) {
+      console.error('Failed to load streak:', error);
+    }
+  };
 
   const getCurrentDate = () => {
     const today = new Date();
@@ -55,9 +71,27 @@ const HomeScreen = () => {
     return today.toLocaleDateString('en-US', options);
   };
 
+  const triggerSplashAnimation = () => {
+    const newSplash = new Animated.Value(0);
+    setSplashAnimations(prev => [...prev, newSplash]);
+
+    Animated.parallel([
+      Animated.timing(newSplash, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      // Remove the animation from the array after it completes
+      setSplashAnimations(prev => prev.filter(anim => anim !== newSplash));
+    });
+  };
+
   const handleLogWater = async (amount, containerId = null) => {
     try {
       await logWater(amount, containerId);
+      await loadStreak(); // Reload streak after logging water
+      triggerSplashAnimation(); // Trigger splash animation
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error) {
       console.error('Failed to log water:', error);
@@ -110,18 +144,47 @@ const HomeScreen = () => {
     );
   };
 
-  const ContainerButton = ({ container, onPress }) => (
-    <TouchableOpacity 
-      style={styles.containerButton} 
-      onPress={() => onPress(container.volume, container.id)}
-    >
-      <View style={[styles.containerIconContainer, { backgroundColor: container.color }]}>
-        <Ionicons name={container.type} size={24} color="#FFFFFF" />
-      </View>
-      <Text style={styles.containerLabel}>{container.name}</Text>
-      <Text style={styles.containerAmount}>{container.volume}ml</Text>
-    </TouchableOpacity>
-  );
+  const ContainerButton = ({ container, onPress }) => {
+    const scaleAnim = useRef(new Animated.Value(1)).current;
+
+    const handlePressIn = () => {
+      Animated.spring(scaleAnim, {
+        toValue: 0.95,
+        useNativeDriver: true,
+      }).start();
+    };
+
+    const handlePressOut = () => {
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        friction: 3,
+        tension: 40,
+        useNativeDriver: true,
+      }).start();
+    };
+
+    return (
+      <TouchableOpacity
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        onPress={() => onPress(container.volume, container.id)}
+        activeOpacity={1}
+      >
+        <Animated.View
+          style={[
+            styles.containerButton,
+            { transform: [{ scale: scaleAnim }] },
+          ]}
+        >
+          <View style={[styles.containerIconContainer, { backgroundColor: container.color }]}>
+            <Ionicons name={container.type} size={24} color="#FFFFFF" />
+          </View>
+          <Text style={styles.containerLabel}>{container.name}</Text>
+          <Text style={styles.containerAmount}>{container.volume}ml</Text>
+        </Animated.View>
+      </TouchableOpacity>
+    );
+  };
 
   if (loading) {
     return (
@@ -140,7 +203,15 @@ const HomeScreen = () => {
       
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.dateText}>{getCurrentDate()}</Text>
+        <View style={styles.headerTop}>
+          <Text style={styles.dateText}>{getCurrentDate()}</Text>
+          {streak > 0 && (
+            <View style={styles.streakBadge}>
+              <Ionicons name="flame" size={16} color="#FF6B35" />
+              <Text style={styles.streakText}>{streak} day{streak !== 1 ? 's' : ''}</Text>
+            </View>
+          )}
+        </View>
         <View style={styles.progressHeader}>
           <Text style={styles.intakeText}>
             {currentIntake.toLocaleString()}ml
@@ -152,6 +223,29 @@ const HomeScreen = () => {
       {/* Main Visualization Area */}
       <View style={styles.visualizationContainer}>
         <View style={styles.circularProgressContainer}>
+          {/* Splash animations */}
+          {splashAnimations.map((anim, index) => (
+            <Animated.View
+              key={index}
+              style={[
+                styles.splashCircle,
+                {
+                  opacity: anim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0.6, 0],
+                  }),
+                  transform: [
+                    {
+                      scale: anim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [0.5, 2],
+                      }),
+                    },
+                  ],
+                },
+              ]}
+            />
+          ))}
           <CircularProgress
             size={280}
             width={8}
@@ -228,10 +322,33 @@ const styles = StyleSheet.create({
     paddingVertical: 15,
     alignItems: 'center',
   },
+  headerTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+    width: '100%',
+  },
   dateText: {
     fontSize: 16,
     color: '#666',
-    marginBottom: 8,
+  },
+  streakBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF3E0',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    marginLeft: 12,
+    borderWidth: 1,
+    borderColor: '#FFCC80',
+  },
+  streakText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FF6B35',
+    marginLeft: 4,
   },
   progressHeader: {
     flexDirection: 'row',
@@ -365,6 +482,15 @@ const styles = StyleSheet.create({
     marginTop: 10,
     fontSize: 16,
     color: '#666',
+  },
+  splashCircle: {
+    position: 'absolute',
+    width: 280,
+    height: 280,
+    borderRadius: 140,
+    borderWidth: 3,
+    borderColor: '#00B4DB',
+    backgroundColor: 'transparent',
   },
 });
 

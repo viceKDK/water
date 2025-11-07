@@ -8,8 +8,7 @@ import {
   TouchableOpacity,
   RefreshControl,
   Animated,
-  PanGestureHandler,
-  State,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, {
@@ -23,50 +22,100 @@ import Svg, {
   Stop,
 } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
+import { useApp } from '../context/AppContext';
+import DatabaseService from '../services/DatabaseService';
 
 const { width, height } = Dimensions.get('window');
 const CHART_WIDTH = width - 40;
 const CHART_HEIGHT = 200;
 
-// Mock data structure - replace with actual data from props/context
-const mockStatsData = {
-  daily: {
-    consumed: 1650,
-    goal: 2000,
-    streak: 7,
-    hourly: [0, 0, 0, 0, 0, 0, 250, 200, 150, 300, 250, 200, 150, 100, 0, 0, 150, 0, 0, 0, 0, 0, 0, 0],
-  },
-  weekly: [
-    { date: '2025-01-27', consumed: 1800, goal: 2000, dayName: 'Mon' },
-    { date: '2025-01-28', consumed: 2100, goal: 2000, dayName: 'Tue' },
-    { date: '2025-01-29', consumed: 1650, goal: 2000, dayName: 'Wed' },
-    { date: '2025-01-30', consumed: 2200, goal: 2000, dayName: 'Thu' },
-    { date: '2025-01-31', consumed: 1900, goal: 2000, dayName: 'Fri' },
-    { date: '2025-02-01', consumed: 1750, goal: 2000, dayName: 'Sat' },
-    { date: '2025-02-02', consumed: 1650, goal: 2000, dayName: 'Sun' },
-  ],
-  monthly: Array.from({ length: 31 }, (_, i) => ({
-    date: `2025-01-${String(i + 1).padStart(2, '0')}`,
-    consumed: Math.floor(Math.random() * 1000) + 1200,
-    day: i + 1,
-  })),
-};
-
-const StatsScreen = ({ statsData = mockStatsData }) => {
+const StatsScreen = () => {
+  const { currentIntake, dailyGoal, stats } = useApp();
   const [activeTab, setActiveTab] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const scrollViewRef = useRef(null);
   const translateX = useRef(new Animated.Value(0)).current;
 
+  // Real data states
+  const [hourlyData, setHourlyData] = useState(new Array(24).fill(0));
+  const [weeklyData, setWeeklyData] = useState([]);
+  const [monthlyData, setMonthlyData] = useState([]);
+  const [streak, setStreak] = useState(0);
+
   const tabs = ['Daily', 'Weekly', 'Monthly'];
+
+  useEffect(() => {
+    loadStatsData();
+  }, []);
+
+  const loadStatsData = async () => {
+    setLoading(true);
+    try {
+      // Load hourly data for today
+      const hourly = await DatabaseService.getHourlyIntake();
+      setHourlyData(hourly);
+
+      // Load weekly data (last 7 days)
+      const today = new Date();
+      const weekStart = new Date(today);
+      weekStart.setDate(today.getDate() - 6);
+
+      const weekStartStr = weekStart.toISOString().split('T')[0];
+      const todayStr = today.toISOString().split('T')[0];
+
+      const weeklyResults = await DatabaseService.getWeeklyIntake(weekStartStr, todayStr);
+
+      // Fill in missing days with 0
+      const weeklyDataFormatted = [];
+      for (let i = 6; i >= 0; i--) {
+        const date = new Date(today);
+        date.setDate(today.getDate() - i);
+        const dateStr = date.toISOString().split('T')[0];
+        const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+        const existingData = weeklyResults.find(r => r.date === dateStr);
+        weeklyDataFormatted.push({
+          date: dateStr,
+          consumed: existingData ? existingData.consumed : 0,
+          goal: dailyGoal,
+          dayName: dayNames[date.getDay()],
+        });
+      }
+      setWeeklyData(weeklyDataFormatted);
+
+      // Load monthly data
+      const year = today.getFullYear();
+      const month = today.getMonth() + 1;
+      const monthlyResults = await DatabaseService.getMonthlyIntake(year, month);
+
+      // Fill in missing days
+      const daysInMonth = new Date(year, month, 0).getDate();
+      const monthlyDataFormatted = [];
+      for (let i = 1; i <= daysInMonth; i++) {
+        const existingData = monthlyResults.find(r => r.day === i);
+        monthlyDataFormatted.push({
+          date: `${year}-${String(month).padStart(2, '0')}-${String(i).padStart(2, '0')}`,
+          consumed: existingData ? existingData.consumed : 0,
+          day: i,
+        });
+      }
+      setMonthlyData(monthlyDataFormatted);
+
+      // Load streak
+      const streakDays = await DatabaseService.getStreakDays();
+      setStreak(streakDays);
+    } catch (error) {
+      console.error('Failed to load stats data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const onRefresh = async () => {
     setRefreshing(true);
-    // Simulate data refresh
-    setTimeout(() => {
-      setRefreshing(false);
-    }, 1000);
+    await loadStatsData();
+    setRefreshing(false);
   };
 
   const switchTab = (index) => {
@@ -296,34 +345,34 @@ const StatsScreen = ({ statsData = mockStatsData }) => {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
     >
       <DailyCircularProgress
-        consumed={statsData.daily.consumed}
-        goal={statsData.daily.goal}
+        consumed={currentIntake}
+        goal={dailyGoal}
       />
-      
+
       <View style={styles.statsRow}>
         <StatCard
           title="Streak"
-          value={`${statsData.daily.streak} days`}
+          value={`${streak} days`}
           icon="flame"
           color="#FF6B35"
         />
         <StatCard
           title="Progress"
-          value={`${Math.round((statsData.daily.consumed / statsData.daily.goal) * 100)}%`}
+          value={`${Math.round((currentIntake / dailyGoal) * 100)}%`}
           icon="trending-up"
           color="#4CAF50"
         />
       </View>
 
-      <HourlyBars hourlyData={statsData.daily.hourly} />
+      <HourlyBars hourlyData={hourlyData} />
     </ScrollView>
   );
 
   const renderWeeklyView = () => {
-    const weeklyAverage = Math.round(
-      statsData.weekly.reduce((sum, day) => sum + day.consumed, 0) / statsData.weekly.length
-    );
-    const goalsMet = statsData.weekly.filter(day => day.consumed >= day.goal).length;
+    const weeklyAverage = weeklyData.length > 0
+      ? Math.round(weeklyData.reduce((sum, day) => sum + day.consumed, 0) / weeklyData.length)
+      : 0;
+    const goalsMet = weeklyData.filter(day => day.consumed >= day.goal).length;
 
     return (
       <ScrollView
@@ -346,7 +395,7 @@ const StatsScreen = ({ statsData = mockStatsData }) => {
           />
         </View>
 
-        <WeeklyBarChart weeklyData={statsData.weekly} />
+        <WeeklyBarChart weeklyData={weeklyData} />
 
         <View style={styles.legendContainer}>
           <View style={styles.legendItem}>
@@ -367,14 +416,16 @@ const StatsScreen = ({ statsData = mockStatsData }) => {
   };
 
   const renderMonthlyView = () => {
-    const monthlyTotal = statsData.monthly.reduce((sum, day) => sum + day.consumed, 0);
-    const monthlyAverage = Math.round(monthlyTotal / statsData.monthly.length);
-    const bestDay = statsData.monthly.reduce((max, day) => 
-      day.consumed > max.consumed ? day : max
-    );
-    const worstDay = statsData.monthly.reduce((min, day) => 
-      day.consumed < min.consumed ? day : min
-    );
+    const monthlyTotal = monthlyData.reduce((sum, day) => sum + day.consumed, 0);
+    const monthlyAverage = monthlyData.length > 0
+      ? Math.round(monthlyTotal / monthlyData.length)
+      : 0;
+    const bestDay = monthlyData.length > 0
+      ? monthlyData.reduce((max, day) => day.consumed > max.consumed ? day : max)
+      : { consumed: 0, day: 0 };
+    const worstDay = monthlyData.length > 0
+      ? monthlyData.reduce((min, day) => day.consumed < min.consumed ? day : min)
+      : { consumed: 0, day: 0 };
 
     return (
       <ScrollView
@@ -396,7 +447,7 @@ const StatsScreen = ({ statsData = mockStatsData }) => {
           />
         </View>
 
-        <MonthlyHeatMap monthlyData={statsData.monthly} />
+        <MonthlyHeatMap monthlyData={monthlyData} />
 
         <View style={styles.statsRow}>
           <StatCard
@@ -417,6 +468,17 @@ const StatsScreen = ({ statsData = mockStatsData }) => {
       </ScrollView>
     );
   };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#4A90E2" />
+          <Text style={styles.loadingText}>Loading statistics...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -597,6 +659,16 @@ const styles = StyleSheet.create({
   },
   legendText: {
     fontSize: 12,
+    color: '#666',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
     color: '#666',
   },
 });
