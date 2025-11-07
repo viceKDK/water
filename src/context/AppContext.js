@@ -290,8 +290,13 @@ export const AppProvider = ({ children }) => {
 
     setDailyGoal: async (goalAmount) => {
       try {
-        await DatabaseService.updateSettings({ dailyGoal: goalAmount });
-        
+        // Update in database
+        if (Platform.OS === 'web') {
+          await DatabaseService.updateSettings({ dailyGoal: goalAmount });
+        } else {
+          await DatabaseService.setSetting('dailyGoal', goalAmount);
+        }
+
         dispatch({
           type: ActionTypes.SET_DAILY_GOAL,
           payload: goalAmount,
@@ -305,7 +310,15 @@ export const AppProvider = ({ children }) => {
     // Settings actions
     updateSettings: async (newSettings) => {
       try {
-        const updatedSettings = await DatabaseService.updateSettings(newSettings);
+        // Update settings in database
+        if (Platform.OS === 'web') {
+          await DatabaseService.updateSettings(newSettings);
+        } else {
+          // For native, update each setting individually
+          for (const [key, value] of Object.entries(newSettings)) {
+            await DatabaseService.setSetting(key, value);
+          }
+        }
 
         dispatch({
           type: ActionTypes.UPDATE_SETTINGS,

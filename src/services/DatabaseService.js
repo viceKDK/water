@@ -354,6 +354,20 @@ class DatabaseService {
     }
   }
 
+  async updateSettings(newSettings) {
+    if (!this.isInitialized) await this.initialize();
+
+    try {
+      for (const [key, value] of Object.entries(newSettings)) {
+        await this.setSetting(key, value);
+      }
+      return newSettings;
+    } catch (error) {
+      console.error('Failed to update settings:', error);
+      throw error;
+    }
+  }
+
   async getDailyGoal(date = null) {
     if (!this.isInitialized) await this.initialize();
 

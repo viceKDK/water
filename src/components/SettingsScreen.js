@@ -17,16 +17,9 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import * as Notifications from 'expo-notifications';
 import * as Haptics from 'expo-haptics';
 import CustomContainerModal from './CustomContainerModal';
+import { useApp } from '../context/AppContext';
 
 const { width } = Dimensions.get('window');
-
-// Mock data - replace with actual data from context/database
-const mockContainers = [
-  { id: '1', name: 'Glass', volume: 250, type: 'wine-outline', color: '#4A90E2', isCustom: false },
-  { id: '2', name: 'Bottle', volume: 500, type: 'bottle-outline', color: '#87CEEB', isCustom: false },
-  { id: '3', name: 'Large Bottle', volume: 1000, type: 'flask-outline', color: '#4CAF50', isCustom: false },
-  { id: '4', name: 'My Cup', volume: 350, type: 'cafe-outline', color: '#FF6B35', isCustom: true },
-];
 
 const FREQUENCY_OPTIONS = [
   { id: 'thirty', label: 'Every 30 minutes', minutes: 30 },
@@ -34,20 +27,39 @@ const FREQUENCY_OPTIONS = [
   { id: 'onetwenty', label: 'Every 2 hours', minutes: 120 },
   { id: 'custom', label: 'Custom', minutes: 90 },
 ];
-//aaa
 
 const GOAL_PRESETS = [1500, 2000, 2500, 3000];
 
 const SettingsScreen = () => {
-  // Settings state
-  const [dailyGoal, setDailyGoal] = useState(2000);
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const [notificationStartTime, setNotificationStartTime] = useState(new Date(2024, 0, 1, 8, 0));
-  const [notificationEndTime, setNotificationEndTime] = useState(new Date(2024, 0, 1, 22, 0));
-  const [notificationFrequency, setNotificationFrequency] = useState('sixty');
-  const [units, setUnits] = useState('metric'); // metric or imperial
-  const [theme, setTheme] = useState('light'); // light or dark
-  const [containers, setContainers] = useState(mockContainers);
+  // Get state and actions from context
+  const {
+    dailyGoal: contextDailyGoal,
+    settings,
+    containers: contextContainers,
+    setDailyGoal: updateDailyGoal,
+    updateSettings,
+    addContainer,
+    updateContainer,
+    deleteContainer,
+    resetAllData,
+  } = useApp();
+
+  // Local UI state
+  const [localDailyGoal, setLocalDailyGoal] = useState(contextDailyGoal);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(settings?.notificationsEnabled ?? true);
+  const [notificationStartTime, setNotificationStartTime] = useState(
+    settings?.notificationStartTime
+      ? new Date(`2024-01-01T${settings.notificationStartTime}`)
+      : new Date(2024, 0, 1, 8, 0)
+  );
+  const [notificationEndTime, setNotificationEndTime] = useState(
+    settings?.notificationEndTime
+      ? new Date(`2024-01-01T${settings.notificationEndTime}`)
+      : new Date(2024, 0, 1, 22, 0)
+  );
+  const [notificationFrequency, setNotificationFrequency] = useState(settings?.notificationFrequency || 'sixty');
+  const [units, setUnits] = useState(settings?.units || 'metric');
+  const [theme, setTheme] = useState(settings?.theme || 'light');
   
   // Modal states
   const [showStartTimePicker, setShowStartTimePicker] = useState(false);
@@ -60,6 +72,20 @@ const SettingsScreen = () => {
   useEffect(() => {
     checkNotificationPermissions();
   }, []);
+
+  // Sync local state with context
+  useEffect(() => {
+    setLocalDailyGoal(contextDailyGoal);
+  }, [contextDailyGoal]);
+
+  useEffect(() => {
+    if (settings) {
+      setNotificationsEnabled(settings.notificationsEnabled ?? true);
+      setNotificationFrequency(settings.notificationFrequency || 'sixty');
+      setUnits(settings.units || 'metric');
+      setTheme(settings.theme || 'light');
+    }
+  }, [settings]);
 
   const checkNotificationPermissions = async () => {
     const { status } = await Notifications.getPermissionsAsync();
@@ -76,6 +102,7 @@ const SettingsScreen = () => {
       const granted = await requestNotificationPermissions();
       if (granted) {
         setNotificationsEnabled(true);
+        await updateSettings({ notificationsEnabled: true });
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       } else {
         Alert.alert(
@@ -86,47 +113,65 @@ const SettingsScreen = () => {
       }
     } else {
       setNotificationsEnabled(false);
+      await updateSettings({ notificationsEnabled: false });
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
   };
 
   const handleGoalChange = (value) => {
-    setDailyGoal(value);
+    setLocalDailyGoal(value);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
-  const handleGoalPreset = (preset) => {
-    setDailyGoal(preset);
+  const handleGoalPreset = async (preset) => {
+    setLocalDailyGoal(preset);
+    await updateDailyGoal(preset);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   };
 
-  const handleTimeChange = (event, selectedTime, type) => {
+  // Update goal when slider is released
+  const handleGoalChangeEnd = async (value) => {
+    await updateDailyGoal(value);
+  };
+
+  const handleTimeChange = async (event, selectedTime, type) => {
     if (selectedTime) {
       if (type === 'start') {
         setNotificationStartTime(selectedTime);
         setShowStartTimePicker(false);
+        const timeStr = selectedTime.toTimeString().slice(0, 5);
+        await updateSettings({ notificationStartTime: timeStr });
       } else {
         setNotificationEndTime(selectedTime);
         setShowEndTimePicker(false);
+        const timeStr = selectedTime.toTimeString().slice(0, 5);
+        await updateSettings({ notificationEndTime: timeStr });
       }
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
   };
 
-  const handleFrequencySelect = (frequencyId) => {
+  const handleFrequencySelect = async (frequencyId) => {
     setNotificationFrequency(frequencyId);
     setShowFrequencyModal(false);
+    await updateSettings({ notificationFrequency: frequencyId });
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
-  const handleContainerSave = (containerData) => {
-    if (editingContainer) {
-      setContainers(prev => prev.map(c => c.id === containerData.id ? containerData : c));
-    } else {
-      setContainers(prev => [...prev, containerData]);
+  const handleContainerSave = async (containerData) => {
+    try {
+      if (editingContainer) {
+        await updateContainer(containerData.id, containerData);
+      } else {
+        await addContainer(containerData);
+      }
+      setEditingContainer(null);
+      setShowContainerModal(false);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (error) {
+      console.error('Failed to save container:', error);
+      Alert.alert('Error', 'Failed to save container');
     }
-    setEditingContainer(null);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   };
 
   const handleContainerEdit = (container) => {
@@ -143,8 +188,8 @@ const SettingsScreen = () => {
         {
           text: 'Delete',
           style: 'destructive',
-          onPress: () => {
-            setContainers(prev => prev.filter(c => c.id !== containerId));
+          onPress: async () => {
+            await deleteContainer(containerId);
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
           },
         },
@@ -161,8 +206,8 @@ const SettingsScreen = () => {
         {
           text: 'Reset',
           style: 'destructive',
-          onPress: () => {
-            // Reset logic would go here
+          onPress: async () => {
+            await resetAllData();
             setShowResetConfirm(false);
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
             Alert.alert('Data Reset', 'All data has been reset to defaults.');
@@ -254,7 +299,7 @@ const SettingsScreen = () => {
         <SettingSection title="Daily Goal">
           <View style={styles.goalContainer}>
             <View style={styles.goalDisplay}>
-              <Text style={styles.goalValue}>{dailyGoal.toLocaleString()}</Text>
+              <Text style={styles.goalValue}>{localDailyGoal.toLocaleString()}</Text>
               <Text style={styles.goalUnit}>ml</Text>
             </View>
             
@@ -262,8 +307,9 @@ const SettingsScreen = () => {
               style={styles.goalSlider}
               minimumValue={500}
               maximumValue={5000}
-              value={dailyGoal}
+              value={localDailyGoal}
               onValueChange={handleGoalChange}
+              onSlidingComplete={handleGoalChangeEnd}
               step={50}
               minimumTrackTintColor="#4A90E2"
               maximumTrackTintColor="#E8F4F8"
@@ -274,10 +320,10 @@ const SettingsScreen = () => {
               {GOAL_PRESETS.map(preset => (
                 <TouchableOpacity
                   key={preset}
-                  style={[styles.presetButton, dailyGoal === preset && styles.activePreset]}
+                  style={[styles.presetButton, localDailyGoal === preset && styles.activePreset]}
                   onPress={() => handleGoalPreset(preset)}
                 >
-                  <Text style={[styles.presetText, dailyGoal === preset && styles.activePresetText]}>
+                  <Text style={[styles.presetText, localDailyGoal === preset && styles.activePresetText]}>
                     {preset === 1500 ? '1.5L' : `${preset / 1000}L`}
                   </Text>
                 </TouchableOpacity>
@@ -357,7 +403,7 @@ const SettingsScreen = () => {
         {/* Container Management Section */}
         <SettingSection title="My Containers">
           <View style={styles.containerList}>
-            {containers.map(container => (
+            {contextContainers.map(container => (
               <ContainerItem key={container.id} container={container} />
             ))}
           </View>
@@ -380,8 +426,10 @@ const SettingsScreen = () => {
             icon="speedometer-outline"
             title="Units"
             subtitle={units === 'metric' ? 'Metric (ml, L)' : 'Imperial (fl oz, cups)'}
-            onPress={() => {
-              setUnits(prev => prev === 'metric' ? 'imperial' : 'metric');
+            onPress={async () => {
+              const newUnits = units === 'metric' ? 'imperial' : 'metric';
+              setUnits(newUnits);
+              await updateSettings({ units: newUnits });
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             }}
             rightComponent={
@@ -390,13 +438,15 @@ const SettingsScreen = () => {
               </Text>
             }
           />
-          
+
           <SettingRow
             icon="color-palette-outline"
             title="Theme"
             subtitle={theme === 'light' ? 'Light theme' : 'Dark theme'}
-            onPress={() => {
-              setTheme(prev => prev === 'light' ? 'dark' : 'light');
+            onPress={async () => {
+              const newTheme = theme === 'light' ? 'dark' : 'light';
+              setTheme(newTheme);
+              await updateSettings({ theme: newTheme });
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             }}
             rightComponent={
