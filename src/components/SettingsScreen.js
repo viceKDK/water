@@ -476,6 +476,47 @@ const SettingsScreen = () => {
             }
           />
         </SettingSection>
+
+        {/* Hydration Tips Section */}
+        <SettingSection title="Learn More About Hydration">
+          <View style={styles.tipsGrid}>
+            <TouchableOpacity style={[styles.tipCard, { backgroundColor: '#E3F2FD' }]}>
+              <Ionicons name="calculator" size={32} color="#2196F3" />
+              <Text style={styles.tipTitle}>¿Cuánta agua?</Text>
+              <Text style={styles.tipSubtitle}>Calcula tu meta</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={[styles.tipCard, { backgroundColor: '#FCE4EC' }]}>
+              <Ionicons name="heart" size={32} color="#E91E63" />
+              <Text style={styles.tipTitle}>Beneficios</Text>
+              <Text style={styles.tipSubtitle}>Salud óptima</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={[styles.tipCard, { backgroundColor: '#FFF3E0' }]}>
+              <Ionicons name="warning" size={32} color="#FF9800" />
+              <Text style={styles.tipTitle}>Deshidratación</Text>
+              <Text style={styles.tipSubtitle}>Señales</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={[styles.tipCard, { backgroundColor: '#F3E5F5' }]}>
+              <Ionicons name="time" size={32} color="#9C27B0" />
+              <Text style={styles.tipTitle}>Mejor momento</Text>
+              <Text style={styles.tipSubtitle}>Cuándo beber</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={[styles.tipCard, { backgroundColor: '#E0F2F1' }]}>
+              <Ionicons name="information-circle" size={32} color="#009688" />
+              <Text style={styles.tipTitle}>Mitos</Text>
+              <Text style={styles.tipSubtitle}>Verdad vs ficción</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={[styles.tipCard, { backgroundColor: '#E8F5E9' }]}>
+              <Ionicons name="fitness" size={32} color="#4CAF50" />
+              <Text style={styles.tipTitle}>Ejercicio</Text>
+              <Text style={styles.tipSubtitle}>Guía deportiva</Text>
+            </TouchableOpacity>
+          </View>
+        </SettingSection>
       </ScrollView>
 
       {/* Time Pickers */}
@@ -817,6 +858,37 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
+    textAlign: 'center',
+  },
+  tipsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginTop: 10,
+  },
+  tipCard: {
+    width: '48%',
+    padding: 15,
+    borderRadius: 12,
+    marginBottom: 12,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  tipTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  tipSubtitle: {
+    fontSize: 11,
+    color: '#666',
+    marginTop: 2,
     textAlign: 'center',
   },
 });
