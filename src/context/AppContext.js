@@ -225,13 +225,19 @@ export const AppProvider = ({ children }) => {
       }
 
       // Initialize database
+      console.log('💾 Initializing database...');
       await DatabaseService.initialize();
+      console.log('✅ Database initialized');
 
       // Load initial data (native SQLite only)
+      console.log('📊 Loading initial data...');
       const dailyIntake = await DatabaseService.getDailyIntake();
+      console.log(`📊 Daily intake: ${dailyIntake}ml`);
 
       const containers = await DatabaseService.getAllContainers();
+      console.log(`📦 Loaded ${containers.length} containers`);
 
+      console.log('⚙️ Loading settings...');
       const settings = {
         dailyGoal: await DatabaseService.getSetting('dailyGoal', 2000),
         notificationsEnabled: Boolean(await DatabaseService.getSetting('notificationsEnabled', true)),
@@ -240,6 +246,7 @@ export const AppProvider = ({ children }) => {
         notificationFrequency: await DatabaseService.getSetting('notificationFrequency', 'sixty'),
         unit: await DatabaseService.getSetting('unit', 'ml')
       };
+      console.log('✅ Settings loaded');
 
       dispatch({
         type: ActionTypes.INITIALIZE_APP,
@@ -256,8 +263,10 @@ export const AppProvider = ({ children }) => {
         },
       });
 
+      console.log('✅ App initialized successfully');
+
     } catch (error) {
-      console.error('Failed to initialize app:', error);
+      console.error('❌ Failed to initialize app:', error);
       dispatch({ type: ActionTypes.SET_ERROR, payload: error.message });
     }
   };

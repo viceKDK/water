@@ -7,16 +7,28 @@ class DatabaseService {
   }
 
   async initialize() {
-    if (this.isInitialized) return;
+    if (this.isInitialized) {
+      console.log('💾 Database already initialized');
+      return;
+    }
 
     try {
+      console.log('💾 Opening database...');
       this.db = await SQLite.openDatabaseAsync('waterminder.db');
+      console.log('✅ Database opened successfully');
+
+      console.log('📋 Creating tables...');
       await this.createTables();
+      console.log('✅ Tables created successfully');
+
+      console.log('🌱 Seeding default data...');
       await this.seedDefaultData();
+      console.log('✅ Default data seeded successfully');
+
       this.isInitialized = true;
-      console.log('Database initialized successfully');
+      console.log('✅ Database initialized successfully');
     } catch (error) {
-      console.error('Failed to initialize database:', error);
+      console.error('❌ Failed to initialize database:', error);
       throw error;
     }
   }
@@ -123,12 +135,14 @@ class DatabaseService {
   }
 
   async seedDefaultData() {
+    console.log('🌱 Checking for default containers...');
     // Check if default containers already exist
     const existingContainers = await this.db.getFirstAsync(
       'SELECT COUNT(*) as count FROM containers WHERE is_custom = 0'
     );
 
     if (existingContainers.count === 0) {
+      console.log('➕ Creating default containers...');
       const defaultContainers = [
         { id: 'glass-250', name: 'Glass', volume: 250, type: 'wine-outline', color: '#4A90E2' },
         { id: 'bottle-500', name: 'Bottle', volume: 500, type: 'bottle-outline', color: '#87CEEB' },
@@ -141,31 +155,44 @@ class DatabaseService {
           [container.id, container.name, container.volume, container.type, container.color]
         );
       }
+      console.log('✅ Default containers created');
+    } else {
+      console.log('✓ Default containers already exist');
     }
 
+    console.log('⚙️ Checking settings...');
     // Set default daily goal if not exists
     const defaultGoal = await this.getSetting('dailyGoal');
     if (!defaultGoal) {
+      console.log('➕ Setting default daily goal...');
       await this.setSetting('dailyGoal', 2000);
     }
 
     // Set default notification settings
     const notificationsEnabled = await this.getSetting('notificationsEnabled');
     if (notificationsEnabled === null) {
+      console.log('➕ Setting default notification settings...');
       await this.setSetting('notificationsEnabled', true);
       await this.setSetting('notificationStartTime', '08:00');
       await this.setSetting('notificationEndTime', '22:00');
       await this.setSetting('notificationFrequency', 'sixty');
     }
+    console.log('✅ Settings configured');
 
     // Seed default challenges
+    console.log('🏆 Seeding default challenges...');
     await this.seedDefaultChallenges();
 
     // Seed hydration tips
+    console.log('💡 Seeding hydration tips...');
     await this.seedHydrationTips();
 
     // Migration: Fix old string values to proper types
+    console.log('🔄 Running migrations...');
     await this.migrateOldSettings();
+    console.log('✅ Migrations completed');
+
+    console.log('✅ seedDefaultData() completed');
   }
 
   // Migrate old settings from string to proper types
@@ -254,20 +281,22 @@ class DatabaseService {
     if (!this.isInitialized) await this.initialize();
 
     try {
+      console.log(`📊 Fetching weekly intake from ${startDate} to ${endDate}...`);
       const results = await this.db.getAllAsync(`
-        SELECT 
+        SELECT
           date,
           COALESCE(SUM(amount), 0) as consumed,
           strftime('%w', date) as day_of_week
-        FROM water_intake 
-        WHERE date BETWEEN ? AND ? 
-        GROUP BY date 
+        FROM water_intake
+        WHERE date BETWEEN ? AND ?
+        GROUP BY date
         ORDER BY date
       `, [startDate, endDate]);
+      console.log(`✅ Found ${results.length} daily records for the week`);
 
       return results;
     } catch (error) {
-      console.error('Failed to get weekly intake:', error);
+      console.error('❌ Failed to get weekly intake:', error);
       return [];
     }
   }
@@ -279,20 +308,22 @@ class DatabaseService {
     const endDate = `${year}-${String(month).padStart(2, '0')}-31`;
 
     try {
+      console.log(`📊 Fetching monthly intake for ${year}-${month}...`);
       const results = await this.db.getAllAsync(`
-        SELECT 
+        SELECT
           date,
           COALESCE(SUM(amount), 0) as consumed,
           CAST(strftime('%d', date) as INTEGER) as day
-        FROM water_intake 
-        WHERE date BETWEEN ? AND ? 
-        GROUP BY date 
+        FROM water_intake
+        WHERE date BETWEEN ? AND ?
+        GROUP BY date
         ORDER BY date
       `, [startDate, endDate]);
+      console.log(`✅ Found ${results.length} daily records for the month`);
 
       return results;
     } catch (error) {
-      console.error('Failed to get monthly intake:', error);
+      console.error('❌ Failed to get monthly intake:', error);
       return [];
     }
   }
@@ -303,15 +334,17 @@ class DatabaseService {
     const targetDate = date || new Date().toISOString().split('T')[0];
 
     try {
+      console.log(`📊 Fetching hourly intake for date: ${targetDate}...`);
       const results = await this.db.getAllAsync(`
-        SELECT 
+        SELECT
           CAST(strftime('%H', timestamp) as INTEGER) as hour,
           COALESCE(SUM(amount), 0) as amount
-        FROM water_intake 
-        WHERE date = ? 
+        FROM water_intake
+        WHERE date = ?
         GROUP BY strftime('%H', timestamp)
         ORDER BY hour
       `, [targetDate]);
+      console.log(`✅ Found ${results.length} hourly records`);
 
       // Fill in missing hours with 0
       const hourlyData = new Array(24).fill(0);
@@ -431,11 +464,12 @@ class DatabaseService {
 
   // Settings Methods
   async setSetting(key, value) {
-    if (!this.isInitialized) await this.initialize();
+    // Don't check isInitialized here to avoid infinite loop during initialization
+    // This method is called during seedDefaultData()
 
     try {
       await this.db.runAsync(`
-        INSERT OR REPLACE INTO settings (key, value, updated_at) 
+        INSERT OR REPLACE INTO settings (key, value, updated_at)
         VALUES (?, ?, CURRENT_TIMESTAMP)
       `, [key, JSON.stringify(value)]);
       return true;
@@ -446,7 +480,8 @@ class DatabaseService {
   }
 
   async getSetting(key, defaultValue = null) {
-    if (!this.isInitialized) await this.initialize();
+    // Don't check isInitialized here to avoid infinite loop during initialization
+    // This method is called during seedDefaultData()
 
     try {
       const result = await this.db.getFirstAsync(
@@ -638,14 +673,18 @@ class DatabaseService {
 
   // Challenges Methods
   async seedDefaultChallenges() {
-    if (!this.isInitialized) await this.initialize();
-
     try {
+      console.log('  🔍 Checking if challenges already exist...');
       // Check if challenges already exist
       const existing = await this.db.getFirstAsync('SELECT COUNT(*) as count FROM challenges');
+      console.log(`  📊 Found ${existing?.count || 0} existing challenges`);
+
       if (existing && existing.count > 0) {
+        console.log('  ✓ Challenges already seeded');
         return; // Already seeded
       }
+
+      console.log('  ➕ Inserting default challenges...');
 
       const defaultChallenges = [
         {
@@ -718,7 +757,7 @@ class DatabaseService {
 
       for (const challenge of defaultChallenges) {
         await this.db.runAsync(`
-          INSERT INTO challenges (id, name, description, goal_type, goal_value, duration_days, icon, color, reward_badge, is_active)
+          INSERT OR IGNORE INTO challenges (id, name, description, goal_type, goal_value, duration_days, icon, color, reward_badge, is_active)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
         `, [
           challenge.id,
@@ -733,21 +772,25 @@ class DatabaseService {
         ]);
       }
 
-      console.log('✅ Default challenges seeded');
+      console.log(`  ✅ ${defaultChallenges.length} challenges seeded successfully`);
     } catch (error) {
-      console.error('Failed to seed default challenges:', error);
+      console.error('  ❌ Failed to seed default challenges:', error);
     }
   }
 
   async seedHydrationTips() {
-    if (!this.isInitialized) await this.initialize();
-
     try {
+      console.log('  🔍 Checking if hydration tips already exist...');
       // Check if tips already exist
       const existing = await this.db.getFirstAsync('SELECT COUNT(*) as count FROM hydration_tips');
+      console.log(`  📊 Found ${existing?.count || 0} existing tips`);
+
       if (existing && existing.count > 0) {
+        console.log('  ✓ Hydration tips already seeded');
         return; // Already seeded
       }
+
+      console.log('  ➕ Inserting hydration tips...');
 
       const defaultTips = [
         {
@@ -808,7 +851,7 @@ class DatabaseService {
 
       for (const tip of defaultTips) {
         await this.db.runAsync(`
-          INSERT INTO hydration_tips (id, title, summary, full_content, category, icon, color)
+          INSERT OR IGNORE INTO hydration_tips (id, title, summary, full_content, category, icon, color)
           VALUES (?, ?, ?, ?, ?, ?, ?)
         `, [
           tip.id,
@@ -821,9 +864,9 @@ class DatabaseService {
         ]);
       }
 
-      console.log('✅ Hydration tips seeded');
+      console.log(`  ✅ ${defaultTips.length} hydration tips seeded successfully`);
     } catch (error) {
-      console.error('Failed to seed hydration tips:', error);
+      console.error('  ❌ Failed to seed hydration tips:', error);
     }
   }
 
@@ -831,12 +874,14 @@ class DatabaseService {
     if (!this.isInitialized) await this.initialize();
 
     try {
+      console.log('🏆 Fetching available challenges...');
       const challenges = await this.db.getAllAsync(`
         SELECT * FROM challenges WHERE is_active = 1 ORDER BY created_at DESC
       `);
+      console.log(`✅ Found ${challenges.length} available challenges`);
       return challenges;
     } catch (error) {
-      console.error('Failed to get challenges:', error);
+      console.error('❌ Failed to get challenges:', error);
       return [];
     }
   }
@@ -845,6 +890,7 @@ class DatabaseService {
     if (!this.isInitialized) await this.initialize();
 
     try {
+      console.log(`🏆 Fetching user challenges${status ? ` with status: ${status}` : ''}...`);
       let query = `
         SELECT uc.*, c.name, c.description, c.goal_type, c.goal_value, c.duration_days, c.icon, c.color, c.reward_badge
         FROM user_challenges uc
@@ -853,12 +899,16 @@ class DatabaseService {
 
       if (status) {
         query += ` WHERE uc.status = ?`;
-        return await this.db.getAllAsync(query, [status]);
+        const result = await this.db.getAllAsync(query, [status]);
+        console.log(`✅ Found ${result.length} user challenges with status: ${status}`);
+        return result;
       }
 
-      return await this.db.getAllAsync(query);
+      const result = await this.db.getAllAsync(query);
+      console.log(`✅ Found ${result.length} user challenges`);
+      return result;
     } catch (error) {
-      console.error('Failed to get user challenges:', error);
+      console.error('❌ Failed to get user challenges:', error);
       return [];
     }
   }

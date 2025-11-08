@@ -177,7 +177,7 @@ const HomeScreen = () => {
           ]}
         >
           <View style={[styles.containerIconContainer, { backgroundColor: container.color }]}>
-            <Ionicons name={container.type} size={24} color="#FFFFFF" />
+            <Ionicons name={container.type} size={28} color="#FFFFFF" />
           </View>
           <Text style={styles.containerLabel}>{container.name}</Text>
           <Text style={styles.containerAmount}>{container.volume}ml</Text>
@@ -416,46 +416,46 @@ const styles = StyleSheet.create({
   containerButtonsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 20,
+    marginBottom: 25,
   },
   containerButton: {
     flex: 1,
     alignItems: 'center',
     backgroundColor: '#F0F9FF',
     borderRadius: 15,
-    paddingVertical: 15,
-    paddingHorizontal: 10,
+    paddingVertical: 18,
+    paddingHorizontal: 8,
     marginHorizontal: 5,
     borderWidth: 1,
     borderColor: '#E0F2FE',
   },
   containerIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 8,
+    marginBottom: 10,
     shadowColor: '#00B4DB',
     shadowOffset: {
       width: 0,
       height: 2,
     },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowOpacity: 0.15,
+    shadowRadius: 5,
+    elevation: 3,
   },
   containerLabel: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
     color: '#333',
-    marginBottom: 2,
+    marginBottom: 4,
   },
   containerAmount: {
     fontSize: 12,
     color: '#00B4DB',
-    fontWeight: '500',
+    fontWeight: '600',
   },
   customButton: {
     flexDirection: 'row',
@@ -466,6 +466,7 @@ const styles = StyleSheet.create({
     paddingVertical: 15,
     borderWidth: 1,
     borderColor: '#E0F2FE',
+    marginTop: 30,
   },
   customButtonText: {
     fontSize: 16,

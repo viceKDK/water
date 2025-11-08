@@ -7,6 +7,16 @@
 
 import * as SecureStore from 'expo-secure-store';
 
+// Claves predefinidas para la app
+export const SECURE_STORAGE_KEYS = {
+  ENCRYPTION_KEY: 'db_encryption_key',
+  MASTER_KEY: 'master_key',
+  DATA_CHECKSUM: 'data_checksum',
+  LAST_INTEGRITY_CHECK: 'last_integrity_check',
+  USER_PIN: 'user_pin_hash',
+  BIOMETRIC_ENABLED: 'biometric_enabled',
+};
+
 class SecureStorageService {
   constructor() {
     this.isInitialized = false;
@@ -106,17 +116,13 @@ class SecureStorageService {
       return false;
     }
   }
-
-  // Claves predefinidas para la app
-  static KEYS = {
-    ENCRYPTION_KEY: 'db_encryption_key',
-    MASTER_KEY: 'master_key',
-    DATA_CHECKSUM: 'data_checksum',
-    LAST_INTEGRITY_CHECK: 'last_integrity_check',
-    USER_PIN: 'user_pin_hash',
-    BIOMETRIC_ENABLED: 'biometric_enabled',
-  };
 }
 
+// Create singleton instance
+const secureStorageServiceInstance = new SecureStorageService();
+
+// Add KEYS property to instance for backward compatibility
+secureStorageServiceInstance.KEYS = SECURE_STORAGE_KEYS;
+
 // Export singleton instance
-export default new SecureStorageService();
+export default secureStorageServiceInstance;

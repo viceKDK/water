@@ -24,15 +24,23 @@ const ChallengesScreen = () => {
   }, []);
 
   const loadData = async () => {
+    console.log('🏆 ChallengesScreen: Loading challenges data...');
     setLoading(true);
     try {
+      console.log('🏆 ChallengesScreen: Fetching all challenges...');
       const allChallenges = await DatabaseService.getChallenges();
+      console.log('🏆 ChallengesScreen: All challenges received:', allChallenges.length);
+
+      console.log('🏆 ChallengesScreen: Fetching user challenges...');
       const myChallenges = await DatabaseService.getUserChallenges();
+      console.log('🏆 ChallengesScreen: User challenges received:', myChallenges.length);
 
       setChallenges(allChallenges);
       setUserChallenges(myChallenges);
+
+      console.log('✅ ChallengesScreen: All data loaded successfully');
     } catch (error) {
-      console.error('Failed to load challenges:', error);
+      console.error('❌ ChallengesScreen: Failed to load challenges:', error);
     } finally {
       setLoading(false);
     }

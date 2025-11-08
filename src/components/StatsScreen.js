@@ -15,6 +15,7 @@ import Svg, {
   Circle,
   Rect,
   Text as SvgText,
+  TSpan,
   Line,
   G,
   Defs,
@@ -50,13 +51,17 @@ const StatsScreen = () => {
   }, []);
 
   const loadStatsData = async () => {
+    console.log('📊 StatsScreen: Loading stats data...');
     setLoading(true);
     try {
       // Load hourly data for today
+      console.log('📊 StatsScreen: Fetching hourly data...');
       const hourly = await DatabaseService.getHourlyIntake();
+      console.log('📊 StatsScreen: Hourly data received:', hourly.length, 'records');
       setHourlyData(hourly);
 
       // Load weekly data (last 7 days)
+      console.log('📊 StatsScreen: Fetching weekly data...');
       const today = new Date();
       const weekStart = new Date(today);
       weekStart.setDate(today.getDate() - 6);
@@ -65,6 +70,7 @@ const StatsScreen = () => {
       const todayStr = today.toISOString().split('T')[0];
 
       const weeklyResults = await DatabaseService.getWeeklyIntake(weekStartStr, todayStr);
+      console.log('📊 StatsScreen: Weekly data received:', weeklyResults.length, 'records');
 
       // Fill in missing days with 0
       const weeklyDataFormatted = [];
@@ -83,11 +89,14 @@ const StatsScreen = () => {
         });
       }
       setWeeklyData(weeklyDataFormatted);
+      console.log('📊 StatsScreen: Weekly data formatted:', weeklyDataFormatted.length, 'days');
 
       // Load monthly data
+      console.log('📊 StatsScreen: Fetching monthly data...');
       const year = today.getFullYear();
       const month = today.getMonth() + 1;
       const monthlyResults = await DatabaseService.getMonthlyIntake(year, month);
+      console.log('📊 StatsScreen: Monthly data received:', monthlyResults.length, 'records');
 
       // Fill in missing days
       const daysInMonth = new Date(year, month, 0).getDate();
@@ -101,12 +110,17 @@ const StatsScreen = () => {
         });
       }
       setMonthlyData(monthlyDataFormatted);
+      console.log('📊 StatsScreen: Monthly data formatted:', monthlyDataFormatted.length, 'days');
 
       // Load streak
+      console.log('📊 StatsScreen: Fetching streak data...');
       const streakDays = await DatabaseService.getStreakDays();
+      console.log('📊 StatsScreen: Streak data received:', streakDays, 'days');
       setStreak(streakDays);
+
+      console.log('✅ StatsScreen: All data loaded successfully');
     } catch (error) {
-      console.error('Failed to load stats data:', error);
+      console.error('❌ StatsScreen: Failed to load stats data:', error);
     } finally {
       setLoading(false);
     }
@@ -126,13 +140,16 @@ const StatsScreen = () => {
   // Daily View Components
   const DailyCircularProgress = ({ consumed, goal }) => {
     const percentage = Math.min((consumed / goal) * 100, 100);
-    const circumference = 2 * Math.PI * 80;
+    const radius = 76.5;
+    const circumference = 2 * Math.PI * radius;
     const strokeDasharray = circumference;
     const strokeDashoffset = circumference - (percentage / 100) * circumference;
+    const size = 193;
+    const center = size / 2;
 
     return (
       <View style={styles.circularProgressContainer}>
-        <Svg width={200} height={200}>
+        <Svg width={size} height={size}>
           <Defs>
             <SvgLinearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
               <Stop offset="0%" stopColor="#4A90E2" />
@@ -140,43 +157,56 @@ const StatsScreen = () => {
             </SvgLinearGradient>
           </Defs>
           <Circle
-            cx={100}
-            cy={100}
-            r={80}
+            cx={center}
+            cy={center}
+            r={radius}
             stroke="#E8F4F8"
-            strokeWidth={12}
+            strokeWidth={10}
             fill="none"
           />
           <Circle
-            cx={100}
-            cy={100}
-            r={80}
+            cx={center}
+            cy={center}
+            r={radius}
             stroke="url(#progressGradient)"
-            strokeWidth={12}
+            strokeWidth={10}
             fill="none"
             strokeDasharray={strokeDasharray}
             strokeDashoffset={strokeDashoffset}
             strokeLinecap="round"
-            transform="rotate(-90 100 100)"
+            transform={`rotate(-90 ${center} ${center})`}
           />
+          {/* Main number with ml */}
           <SvgText
-            x={100}
-            y={90}
+            x={center}
+            y={center - 20}
             textAnchor="middle"
-            fontSize={24}
             fontWeight="bold"
             fill="#4A90E2"
           >
-            {consumed}ml
+            <TSpan fontSize={22}>{consumed}</TSpan>
+            <TSpan fontSize={12} dx={-11} fill="#888">ml</TSpan>
           </SvgText>
+          {/* "of" text */}
           <SvgText
-            x={100}
-            y={115}
+            x={center}
+            y={center + 5}
             textAnchor="middle"
-            fontSize={16}
+            fontSize={12}
+            fill="#888"
+          >
+            of
+          </SvgText>
+          {/* Goal amount with ml */}
+          <SvgText
+            x={center}
+            y={center + 35}
+            textAnchor="middle"
+            fontWeight="bold"
             fill="#666"
           >
-            of {goal}ml
+            <TSpan fontSize={22}>{goal}</TSpan>
+            <TSpan fontSize={12} dx={-11} fill="#888">ml</TSpan>
           </SvgText>
         </Svg>
       </View>
@@ -282,12 +312,16 @@ const StatsScreen = () => {
     const weeks = Math.ceil(monthlyData.length / 7);
 
     const getIntensity = (value) => {
+      // Handle case when all values are 0 or equal
+      if (maxValue === minValue) {
+        return value > 0 ? 0.5 : 0.2;
+      }
       const normalized = (value - minValue) / (maxValue - minValue);
       return Math.max(0.2, normalized);
     };
 
     const getColor = (intensity) => {
-      const opacity = intensity;
+      const opacity = isNaN(intensity) ? 0.2 : intensity;
       return `rgba(74, 144, 226, ${opacity})`;
     };
 
@@ -576,7 +610,7 @@ const styles = StyleSheet.create({
   },
   circularProgressContainer: {
     alignItems: 'center',
-    marginVertical: 30,
+    marginVertical: 5,
   },
   chartContainer: {
     backgroundColor: '#FFFFFF',
