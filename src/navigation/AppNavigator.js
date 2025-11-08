@@ -7,6 +7,8 @@ import { Platform, View } from 'react-native';
 // Import screens
 import HomeScreen from '../components/HomeScreen';
 import StatsScreen from '../components/StatsScreen';
+import ChallengesScreen from '../components/ChallengesScreen';
+import ShareScreen from '../components/ShareScreen';
 import SettingsScreen from '../components/SettingsScreen';
 
 const Tab = createBottomTabNavigator();
@@ -21,6 +23,12 @@ const AppNavigator = () => {
         break;
       case 'Stats':
         iconName = focused ? 'analytics' : 'analytics-outline';
+        break;
+      case 'Challenges':
+        iconName = focused ? 'trophy' : 'trophy-outline';
+        break;
+      case 'Share':
+        iconName = focused ? 'share-social' : 'share-social-outline';
         break;
       case 'Settings':
         iconName = focused ? 'settings' : 'settings-outline';
@@ -80,15 +88,31 @@ const AppNavigator = () => {
           name="Stats"
           component={StatsScreen}
           options={{
-            tabBarLabel: 'Statistics',
+            tabBarLabel: 'Stats',
             tabBarAccessibilityLabel: 'Statistics Tab, View Water Intake Data',
+          }}
+        />
+        <Tab.Screen
+          name="Challenges"
+          component={ChallengesScreen}
+          options={{
+            tabBarLabel: 'Retos',
+            tabBarAccessibilityLabel: 'Challenges Tab, Complete Hydration Challenges',
+          }}
+        />
+        <Tab.Screen
+          name="Share"
+          component={ShareScreen}
+          options={{
+            tabBarLabel: 'Compartir',
+            tabBarAccessibilityLabel: 'Share Tab, Share Your Progress',
           }}
         />
         <Tab.Screen
           name="Settings"
           component={SettingsScreen}
           options={{
-            tabBarLabel: 'Settings',
+            tabBarLabel: 'Ajustes',
             tabBarAccessibilityLabel: 'Settings Tab, App Configuration',
           }}
         />

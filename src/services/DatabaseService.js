@@ -58,10 +58,65 @@ class DatabaseService {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       );
 
+      -- Challenges table
+      CREATE TABLE IF NOT EXISTS challenges (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        description TEXT,
+        goal_type TEXT NOT NULL,
+        goal_value INTEGER NOT NULL,
+        duration_days INTEGER NOT NULL,
+        icon TEXT,
+        color TEXT,
+        reward_badge TEXT,
+        is_active BOOLEAN DEFAULT 1,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+
+      -- User challenges table (tracking user progress)
+      CREATE TABLE IF NOT EXISTS user_challenges (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        challenge_id TEXT NOT NULL,
+        start_date TEXT NOT NULL,
+        end_date TEXT,
+        status TEXT DEFAULT 'active',
+        progress INTEGER DEFAULT 0,
+        completed_at DATETIME,
+        FOREIGN KEY (challenge_id) REFERENCES challenges(id)
+      );
+
+      -- Badges table
+      CREATE TABLE IF NOT EXISTS badges (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        description TEXT,
+        icon TEXT,
+        color TEXT,
+        earned_at DATETIME,
+        challenge_id TEXT,
+        FOREIGN KEY (challenge_id) REFERENCES challenges(id)
+      );
+
+      -- Hydration tips table
+      CREATE TABLE IF NOT EXISTS hydration_tips (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        summary TEXT,
+        full_content TEXT,
+        category TEXT,
+        icon TEXT,
+        color TEXT,
+        read_at DATETIME,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+
       -- Create indexes for better performance
       CREATE INDEX IF NOT EXISTS idx_water_intake_date ON water_intake(date);
       CREATE INDEX IF NOT EXISTS idx_water_intake_timestamp ON water_intake(timestamp);
       CREATE INDEX IF NOT EXISTS idx_containers_active ON containers(is_active);
+      CREATE INDEX IF NOT EXISTS idx_user_challenges_status ON user_challenges(status);
+      CREATE INDEX IF NOT EXISTS idx_badges_earned ON badges(earned_at);
+      CREATE INDEX IF NOT EXISTS idx_tips_category ON hydration_tips(category);
     `;
 
     await this.db.execAsync(createTablesSQL);
@@ -102,6 +157,12 @@ class DatabaseService {
       await this.setSetting('notificationEndTime', '22:00');
       await this.setSetting('notificationFrequency', 'sixty');
     }
+
+    // Seed default challenges
+    await this.seedDefaultChallenges();
+
+    // Seed hydration tips
+    await this.seedHydrationTips();
 
     // Migration: Fix old string values to proper types
     await this.migrateOldSettings();
@@ -572,6 +633,359 @@ class DatabaseService {
     } catch (error) {
       console.error('Failed to get average intake:', error);
       return 0;
+    }
+  }
+
+  // Challenges Methods
+  async seedDefaultChallenges() {
+    if (!this.isInitialized) await this.initialize();
+
+    try {
+      // Check if challenges already exist
+      const existing = await this.db.getFirstAsync('SELECT COUNT(*) as count FROM challenges');
+      if (existing && existing.count > 0) {
+        return; // Already seeded
+      }
+
+      const defaultChallenges = [
+        {
+          id: 'streak-7',
+          name: '7-Day Streak',
+          description: 'Reach your daily goal for 7 consecutive days',
+          goal_type: 'streak',
+          goal_value: 7,
+          duration_days: 7,
+          icon: 'flame',
+          color: '#FF6B35',
+          reward_badge: 'badge-streak-7'
+        },
+        {
+          id: 'early-bird',
+          name: 'Early Bird',
+          description: 'Drink water before 9 AM for 5 days',
+          goal_type: 'early_morning',
+          goal_value: 5,
+          duration_days: 5,
+          icon: 'sunny',
+          color: '#FFD93D',
+          reward_badge: 'badge-early-bird'
+        },
+        {
+          id: 'consistency',
+          name: 'Consistency King',
+          description: 'Drink water every 2 hours for 3 days',
+          goal_type: 'frequency',
+          goal_value: 3,
+          duration_days: 3,
+          icon: 'timer',
+          color: '#4A90E2',
+          reward_badge: 'badge-consistency'
+        },
+        {
+          id: 'weekend',
+          name: 'Weekend Warrior',
+          description: 'Don\\'t break your streak over the weekend',
+          goal_type: 'weekend_streak',
+          goal_value: 2,
+          duration_days: 2,
+          icon: 'calendar',
+          color: '#9B59B6',
+          reward_badge: 'badge-weekend'
+        },
+        {
+          id: '2l-champion',
+          name: '2L Champion',
+          description: 'Drink 2 liters or more for 7 days',
+          goal_type: 'daily_amount',
+          goal_value: 2000,
+          duration_days: 7,
+          icon: 'trophy',
+          color: '#F39C12',
+          reward_badge: 'badge-2l-champion'
+        },
+        {
+          id: 'month-master',
+          name: 'Month Master',
+          description: 'Reach your goal every day this month',
+          goal_type: 'monthly_complete',
+          goal_value: 30,
+          duration_days: 30,
+          icon: 'star',
+          color: '#E74C3C',
+          reward_badge: 'badge-month-master'
+        }
+      ];
+
+      for (const challenge of defaultChallenges) {
+        await this.db.runAsync(`
+          INSERT INTO challenges (id, name, description, goal_type, goal_value, duration_days, icon, color, reward_badge, is_active)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+        `, [
+          challenge.id,
+          challenge.name,
+          challenge.description,
+          challenge.goal_type,
+          challenge.goal_value,
+          challenge.duration_days,
+          challenge.icon,
+          challenge.color,
+          challenge.reward_badge
+        ]);
+      }
+
+      console.log('✅ Default challenges seeded');
+    } catch (error) {
+      console.error('Failed to seed default challenges:', error);
+    }
+  }
+
+  async seedHydrationTips() {
+    if (!this.isInitialized) await this.initialize();
+
+    try {
+      // Check if tips already exist
+      const existing = await this.db.getFirstAsync('SELECT COUNT(*) as count FROM hydration_tips');
+      if (existing && existing.count > 0) {
+        return; // Already seeded
+      }
+
+      const defaultTips = [
+        {
+          id: 'tip-how-much',
+          title: '¿Cuánta agua necesitas?',
+          summary: 'Calcula tu ingesta diaria ideal',
+          full_content: 'La cantidad de agua que necesitas depende de varios factores:\n\n• Peso: Multiplica tu peso en kg por 35ml\n• Ejercicio: Añade 500-1000ml si haces deporte\n• Clima: Añade 200-500ml en climas cálidos\n• Embarazo: Añade 300ml adicionales\n\nEjemplo: Persona de 70kg = 70 × 35 = 2,450ml al día',
+          category: 'health',
+          icon: 'calculator',
+          color: '#4A90E2'
+        },
+        {
+          id: 'tip-benefits',
+          title: 'Beneficios de la hidratación',
+          summary: 'Por qué es importante beber agua',
+          full_content: 'La hidratación adecuada ayuda a:\n\n• Mejorar la concentración y memoria\n• Facilitar la digestión\n• Mantener una piel saludable\n• Regular la temperatura corporal\n• Transportar nutrientes\n• Eliminar toxinas\n• Mejorar el rendimiento físico\n• Prevenir dolores de cabeza',
+          category: 'health',
+          icon: 'heart',
+          color: '#E74C3C'
+        },
+        {
+          id: 'tip-dehydration',
+          title: 'Señales de deshidratación',
+          summary: 'Identifica cuándo necesitas agua',
+          full_content: 'Síntomas de deshidratación:\n\n• Sed excesiva\n• Orina oscura o escasa\n• Fatiga o cansancio\n• Mareos o confusión\n• Boca y labios secos\n• Dolor de cabeza\n• Piel seca\n• Estreñimiento\n\nSi experimentas estos síntomas, aumenta tu consumo de agua.',
+          category: 'health',
+          icon: 'warning',
+          color: '#F39C12'
+        },
+        {
+          id: 'tip-when',
+          title: 'Mejor momento para beber agua',
+          summary: 'Optimiza tu hidratación',
+          full_content: 'Momentos clave para beber agua:\n\n• Al despertar: Rehidrata tu cuerpo (500ml)\n• Antes de comidas: Ayuda a la digestión (250ml)\n• Después de ejercicio: Repone líquidos (500-1000ml)\n• Antes de dormir: Pero no demasiado (200ml)\n• Durante el día: Pequeños sorbos constantes\n\nEvita grandes cantidades de una sola vez.',
+          category: 'tips',
+          icon: 'time',
+          color: '#9B59B6'
+        },
+        {
+          id: 'tip-myths',
+          title: 'Mitos sobre hidratación',
+          summary: 'Desmintiendo falsas creencias',
+          full_content: 'Mitos comunes:\n\n❌ "8 vasos al día para todos"\nRealidad: Depende de tu peso y actividad\n\n❌ "El café deshidrata"\nRealidad: Contribuye a la hidratación (con moderación)\n\n❌ "Espera a tener sed"\nRealidad: La sed indica que ya estás deshidratado\n\n❌ "Más agua es siempre mejor"\nRealidad: El exceso puede ser peligroso',
+          category: 'myths',
+          icon: 'information-circle',
+          color: '#16A085'
+        },
+        {
+          id: 'tip-exercise',
+          title: 'Hidratación y ejercicio',
+          summary: 'Guía para deportistas',
+          full_content: 'Hidratación durante ejercicio:\n\n• Antes (2h): 500ml de agua\n• Durante: 200-300ml cada 15-20min\n• Después: 150% del peso perdido\n\nEjemplo: Si perdiste 500g durante ejercicio, bebe 750ml\n\nPara ejercicio intenso >1h, considera bebidas con electrolitos.',
+          category: 'performance',
+          icon: 'fitness',
+          color: '#27AE60'
+        }
+      ];
+
+      for (const tip of defaultTips) {
+        await this.db.runAsync(`
+          INSERT INTO hydration_tips (id, title, summary, full_content, category, icon, color)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+        `, [
+          tip.id,
+          tip.title,
+          tip.summary,
+          tip.full_content,
+          tip.category,
+          tip.icon,
+          tip.color
+        ]);
+      }
+
+      console.log('✅ Hydration tips seeded');
+    } catch (error) {
+      console.error('Failed to seed hydration tips:', error);
+    }
+  }
+
+  async getChallenges() {
+    if (!this.isInitialized) await this.initialize();
+
+    try {
+      const challenges = await this.db.getAllAsync(`
+        SELECT * FROM challenges WHERE is_active = 1 ORDER BY created_at DESC
+      `);
+      return challenges;
+    } catch (error) {
+      console.error('Failed to get challenges:', error);
+      return [];
+    }
+  }
+
+  async getUserChallenges(status = null) {
+    if (!this.isInitialized) await this.initialize();
+
+    try {
+      let query = `
+        SELECT uc.*, c.name, c.description, c.goal_type, c.goal_value, c.duration_days, c.icon, c.color, c.reward_badge
+        FROM user_challenges uc
+        JOIN challenges c ON uc.challenge_id = c.id
+      `;
+
+      if (status) {
+        query += ` WHERE uc.status = ?`;
+        return await this.db.getAllAsync(query, [status]);
+      }
+
+      return await this.db.getAllAsync(query);
+    } catch (error) {
+      console.error('Failed to get user challenges:', error);
+      return [];
+    }
+  }
+
+  async startChallenge(challengeId) {
+    if (!this.isInitialized) await this.initialize();
+
+    try {
+      const challenge = await this.db.getFirstAsync(
+        'SELECT * FROM challenges WHERE id = ?',
+        [challengeId]
+      );
+
+      if (!challenge) {
+        throw new Error('Challenge not found');
+      }
+
+      const startDate = new Date().toISOString().split('T')[0];
+      const endDate = new Date(Date.now() + challenge.duration_days * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .split('T')[0];
+
+      const result = await this.db.runAsync(`
+        INSERT INTO user_challenges (challenge_id, start_date, end_date, status, progress)
+        VALUES (?, ?, ?, 'active', 0)
+      `, [challengeId, startDate, endDate]);
+
+      return result.lastInsertRowId;
+    } catch (error) {
+      console.error('Failed to start challenge:', error);
+      throw error;
+    }
+  }
+
+  async updateChallengeProgress(userChallengeId, progress) {
+    if (!this.isInitialized) await this.initialize();
+
+    try {
+      await this.db.runAsync(`
+        UPDATE user_challenges SET progress = ? WHERE id = ?
+      `, [progress, userChallengeId]);
+    } catch (error) {
+      console.error('Failed to update challenge progress:', error);
+      throw error;
+    }
+  }
+
+  async completeChallenge(userChallengeId) {
+    if (!this.isInitialized) await this.initialize();
+
+    try {
+      await this.db.runAsync(`
+        UPDATE user_challenges
+        SET status = 'completed', completed_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `, [userChallengeId]);
+    } catch (error) {
+      console.error('Failed to complete challenge:', error);
+      throw error;
+    }
+  }
+
+  async getHydrationTips(category = null) {
+    if (!this.isInitialized) await this.initialize();
+
+    try {
+      if (category) {
+        return await this.db.getAllAsync(
+          'SELECT * FROM hydration_tips WHERE category = ? ORDER BY created_at',
+          [category]
+        );
+      }
+
+      return await this.db.getAllAsync(
+        'SELECT * FROM hydration_tips ORDER BY created_at'
+      );
+    } catch (error) {
+      console.error('Failed to get hydration tips:', error);
+      return [];
+    }
+  }
+
+  async markTipAsRead(tipId) {
+    if (!this.isInitialized) await this.initialize();
+
+    try {
+      await this.db.runAsync(
+        'UPDATE hydration_tips SET read_at = CURRENT_TIMESTAMP WHERE id = ?',
+        [tipId]
+      );
+    } catch (error) {
+      console.error('Failed to mark tip as read:', error);
+      throw error;
+    }
+  }
+
+  async getBadges() {
+    if (!this.isInitialized) await this.initialize();
+
+    try {
+      return await this.db.getAllAsync(
+        'SELECT * FROM badges ORDER BY earned_at DESC'
+      );
+    } catch (error) {
+      console.error('Failed to get badges:', error);
+      return [];
+    }
+  }
+
+  async awardBadge(badgeData) {
+    if (!this.isInitialized) await this.initialize();
+
+    try {
+      await this.db.runAsync(`
+        INSERT INTO badges (id, name, description, icon, color, earned_at, challenge_id)
+        VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?)
+      `, [
+        badgeData.id,
+        badgeData.name,
+        badgeData.description,
+        badgeData.icon,
+        badgeData.color,
+        badgeData.challenge_id || null
+      ]);
+    } catch (error) {
+      console.error('Failed to award badge:', error);
+      throw error;
     }
   }
 
