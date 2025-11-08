@@ -4,6 +4,10 @@ import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import DatabaseService from '../services/DatabaseService';
 import NotificationService from '../services/NotificationService';
 
+// Import security services
+import EncryptionKeyManager from '../services/EncryptionKeyManager';
+import TamperDetectionService from '../services/TamperDetectionService';
+
 // Initial state
 const initialState = {
   // Water intake data
@@ -208,6 +212,18 @@ export const AppProvider = ({ children }) => {
     try {
       dispatch({ type: ActionTypes.SET_LOADING, payload: true });
 
+      // Initialize security services
+      console.log('🔐 Initializing security services...');
+      await EncryptionKeyManager.initialize();
+      await TamperDetectionService.initialize();
+
+      // Verify data integrity
+      const integrityCheck = await TamperDetectionService.verifyDataIntegrity();
+      if (!integrityCheck.isValid) {
+        console.warn('⚠️ Data integrity check failed:', integrityCheck.message);
+        // Opcional: mostrar advertencia al usuario
+      }
+
       // Initialize database
       await DatabaseService.initialize();
 
@@ -297,6 +313,9 @@ export const AppProvider = ({ children }) => {
           type: ActionTypes.UPDATE_SETTINGS,
           payload: newSettings,
         });
+
+        // Update checksum after settings modification
+        await TamperDetectionService.updateChecksum();
       } catch (error) {
         console.error('Failed to update settings:', error);
         dispatch({ type: ActionTypes.SET_ERROR, payload: error.message });
@@ -319,6 +338,10 @@ export const AppProvider = ({ children }) => {
           type: ActionTypes.ADD_CONTAINER,
           payload: newContainer,
         });
+
+        // Update checksum after data modification
+        await TamperDetectionService.updateChecksum();
+
         return containerId;
       } catch (error) {
         console.error('Failed to add container:', error);
