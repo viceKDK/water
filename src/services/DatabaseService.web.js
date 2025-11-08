@@ -179,6 +179,131 @@ class WebDatabaseService {
     const diffTime = Math.abs(endDate - startDate);
     return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
   }
+
+  async getHourlyIntake(date = null) {
+    const targetDate = date || new Date().toISOString().split('T')[0];
+    const intake = JSON.parse(localStorage.getItem(this.storageKeys.waterIntake) || '[]');
+    const todayIntake = intake.filter(entry => entry.date === targetDate);
+
+    // Initialize array for 24 hours
+    const hourlyData = new Array(24).fill(0);
+
+    // Sum intake by hour
+    todayIntake.forEach(entry => {
+      const hour = new Date(entry.timestamp).getHours();
+      hourlyData[hour] += entry.amount;
+    });
+
+    return hourlyData;
+  }
+
+  async getWeeklyIntake(startDate, endDate) {
+    const intake = JSON.parse(localStorage.getItem(this.storageKeys.waterIntake) || '[]');
+    const weeklyData = intake.filter(entry => {
+      return entry.date >= startDate && entry.date <= endDate;
+    });
+
+    // Group by date
+    const groupedByDate = {};
+    weeklyData.forEach(entry => {
+      if (!groupedByDate[entry.date]) {
+        groupedByDate[entry.date] = 0;
+      }
+      groupedByDate[entry.date] += entry.amount;
+    });
+
+    // Convert to array format
+    return Object.keys(groupedByDate).map(date => ({
+      date: date,
+      consumed: groupedByDate[date]
+    }));
+  }
+
+  async getMonthlyIntake(year, month) {
+    const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
+    const endDate = `${year}-${String(month).padStart(2, '0')}-31`;
+
+    const intake = JSON.parse(localStorage.getItem(this.storageKeys.waterIntake) || '[]');
+    const monthlyData = intake.filter(entry => {
+      return entry.date >= startDate && entry.date <= endDate;
+    });
+
+    // Group by date
+    const groupedByDate = {};
+    monthlyData.forEach(entry => {
+      if (!groupedByDate[entry.date]) {
+        groupedByDate[entry.date] = 0;
+      }
+      groupedByDate[entry.date] += entry.amount;
+    });
+
+    // Convert to array format with day number
+    return Object.keys(groupedByDate).map(date => {
+      const day = parseInt(date.split('-')[2]);
+      return {
+        date: date,
+        consumed: groupedByDate[date],
+        day: day
+      };
+    });
+  }
+
+  async getStreakDays() {
+    const settings = await this.getSettings();
+    const dailyGoal = settings.dailyGoal || 2000;
+
+    const intake = JSON.parse(localStorage.getItem(this.storageKeys.waterIntake) || '[]');
+
+    // Group by date and calculate totals
+    const dailyTotals = {};
+    intake.forEach(entry => {
+      if (!dailyTotals[entry.date]) {
+        dailyTotals[entry.date] = 0;
+      }
+      dailyTotals[entry.date] += entry.amount;
+    });
+
+    // Calculate streak from today backwards
+    let streak = 0;
+    const today = new Date();
+
+    for (let i = 0; i < 365; i++) {
+      const checkDate = new Date(today);
+      checkDate.setDate(today.getDate() - i);
+      const dateStr = checkDate.toISOString().split('T')[0];
+
+      if (dailyTotals[dateStr] && dailyTotals[dateStr] >= dailyGoal) {
+        streak++;
+      } else {
+        break;
+      }
+    }
+
+    return streak;
+  }
+
+  async getDailyIntake(date = null) {
+    const targetDate = date || new Date().toISOString().split('T')[0];
+    const intake = JSON.parse(localStorage.getItem(this.storageKeys.waterIntake) || '[]');
+    const dayIntake = intake.filter(entry => entry.date === targetDate);
+    return dayIntake.reduce((sum, entry) => sum + entry.amount, 0);
+  }
+
+  async getAllContainers() {
+    return this.getContainers();
+  }
+
+  async getSetting(key, defaultValue = null) {
+    const settings = await this.getSettings();
+    return settings[key] !== undefined ? settings[key] : defaultValue;
+  }
+
+  async setSetting(key, value) {
+    const settings = await this.getSettings();
+    settings[key] = value;
+    await this.updateSettings(settings);
+    return true;
+  }
 }
 
 export default new WebDatabaseService();
