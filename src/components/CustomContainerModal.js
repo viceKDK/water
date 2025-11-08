@@ -244,7 +244,7 @@ const CustomContainerModal = ({
   return (
     <Modal
       visible={visible}
-      transparent
+      transparent={true}
       animationType="none"
       onRequestClose={handleClose}
     >

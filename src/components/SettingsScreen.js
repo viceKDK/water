@@ -46,7 +46,13 @@ const SettingsScreen = () => {
 
   // Local UI state
   const [localDailyGoal, setLocalDailyGoal] = useState(contextDailyGoal);
-  const [notificationsEnabled, setNotificationsEnabled] = useState(settings?.notificationsEnabled ?? true);
+  
+  // Force boolean conversion for notificationsEnabled
+  const initialNotifEnabled = Boolean(settings?.notificationsEnabled);
+  console.log('Initial notificationsEnabled from settings:', settings?.notificationsEnabled, 'type:', typeof settings?.notificationsEnabled);
+  console.log('Initial value for state:', initialNotifEnabled, 'type:', typeof initialNotifEnabled);
+  
+  const [notificationsEnabled, setNotificationsEnabled] = useState(initialNotifEnabled);
   const [notificationStartTime, setNotificationStartTime] = useState(
     settings?.notificationStartTime
       ? new Date(`2024-01-01T${settings.notificationStartTime}`)
@@ -80,7 +86,11 @@ const SettingsScreen = () => {
 
   useEffect(() => {
     if (settings) {
-      setNotificationsEnabled(settings.notificationsEnabled ?? true);
+      const enabled = Boolean(settings.notificationsEnabled);
+      console.log('Settings received:', settings);
+      console.log('notificationsEnabled value:', settings.notificationsEnabled, 'type:', typeof settings.notificationsEnabled);
+      console.log('Converted to boolean:', enabled, 'type:', typeof enabled);
+      setNotificationsEnabled(enabled);
       setNotificationFrequency(settings.notificationFrequency || 'sixty');
       setUnits(settings.units || 'metric');
       setTheme(settings.theme || 'light');
@@ -313,7 +323,7 @@ const SettingsScreen = () => {
               step={50}
               minimumTrackTintColor="#4A90E2"
               maximumTrackTintColor="#E8F4F8"
-              thumbStyle={styles.sliderThumb}
+              thumbTintColor="#4A90E2"
             />
             
             <View style={styles.goalPresets}>
@@ -490,7 +500,7 @@ const SettingsScreen = () => {
       {/* Frequency Modal */}
       <Modal
         visible={showFrequencyModal}
-        transparent
+        transparent={true}
         animationType="slide"
         onRequestClose={() => setShowFrequencyModal(false)}
       >

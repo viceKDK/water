@@ -33,8 +33,7 @@
         "android.permission.WAKE_LOCK",
         "android.permission.VIBRATE",
         "com.android.alarm.permission.SET_ALARM"
-      ],
-      "useNextNotificationsApi": true
+      ]
     },
     "web": {
       "bundler": "metro"

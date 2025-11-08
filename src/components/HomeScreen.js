@@ -7,11 +7,11 @@ import {
   Animated,
   Dimensions,
   StatusBar,
-  SafeAreaView,
   ActivityIndicator,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import Svg, { Path, Defs, LinearGradient as SvgLinearGradient, Stop, Rect } from 'react-native-svg';
+import Svg, { Path, Defs, LinearGradient as SvgLinearGradient, Stop, Rect, ClipPath } from 'react-native-svg';
 import { CircularProgress } from 'react-native-circular-progress';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -113,17 +113,17 @@ const HomeScreen = () => {
       <Svg width={120} height={200} viewBox="0 0 120 200">
         <Defs>
           <SvgLinearGradient id="waterGradient" x1="0%" y1="100%" x2="0%" y2="0%">
-            <Stop offset="0%" stopColor="#00B4DB" stopOpacity="0.8" />
-            <Stop offset="100%" stopColor="#0083B0" stopOpacity="0.9" />
+            <Stop offset="0%" stopColor="#00B4DB" stopOpacity={0.8} />
+            <Stop offset="100%" stopColor="#0083B0" stopOpacity={0.9} />
           </SvgLinearGradient>
-          <clipPath id="waterClip">
+          <ClipPath id="waterClip">
             <Rect
-              x="0"
+              x={0}
               y={200 - (fillPercentage * 2)}
-              width="120"
+              width={120}
               height={fillPercentage * 2}
             />
-          </clipPath>
+          </ClipPath>
         </Defs>
         
         {/* Human silhouette outline */}

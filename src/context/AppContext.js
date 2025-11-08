@@ -231,7 +231,7 @@ export const AppProvider = ({ children }) => {
         ? await DatabaseService.getSettings()
         : {
             dailyGoal: await DatabaseService.getSetting('dailyGoal', 2000),
-            notificationsEnabled: await DatabaseService.getSetting('notificationsEnabled', true),
+            notificationsEnabled: Boolean(await DatabaseService.getSetting('notificationsEnabled', true)),
             notificationStartTime: await DatabaseService.getSetting('notificationStartTime', '08:00'),
             notificationEndTime: await DatabaseService.getSetting('notificationEndTime', '22:00'),
             notificationFrequency: await DatabaseService.getSetting('notificationFrequency', 'sixty'),

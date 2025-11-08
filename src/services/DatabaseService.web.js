@@ -118,7 +118,19 @@ class WebDatabaseService {
     };
     
     const stored = localStorage.getItem(this.storageKeys.settings);
-    return stored ? { ...defaultSettings, ...JSON.parse(stored) } : defaultSettings;
+    if (!stored) return defaultSettings;
+    
+    const parsed = JSON.parse(stored);
+    // Ensure boolean type for notificationsEnabled
+    if (parsed.notificationsEnabled !== undefined) {
+      parsed.notificationsEnabled = Boolean(parsed.notificationsEnabled);
+    }
+    // Ensure number type for dailyGoal
+    if (parsed.dailyGoal !== undefined) {
+      parsed.dailyGoal = parseInt(parsed.dailyGoal) || 2000;
+    }
+    
+    return { ...defaultSettings, ...parsed };
   }
 
   async updateSettings(settings) {

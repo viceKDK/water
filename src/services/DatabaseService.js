@@ -89,18 +89,67 @@ class DatabaseService {
     }
 
     // Set default daily goal if not exists
-    const defaultGoal = await this.getSetting('daily_goal');
+    const defaultGoal = await this.getSetting('dailyGoal');
     if (!defaultGoal) {
-      await this.setSetting('daily_goal', '2000');
+      await this.setSetting('dailyGoal', 2000);
     }
 
     // Set default notification settings
-    const notificationsEnabled = await this.getSetting('notifications_enabled');
+    const notificationsEnabled = await this.getSetting('notificationsEnabled');
     if (notificationsEnabled === null) {
-      await this.setSetting('notifications_enabled', 'true');
-      await this.setSetting('notification_start_time', '08:00');
-      await this.setSetting('notification_end_time', '22:00');
-      await this.setSetting('notification_frequency', 'sixty');
+      await this.setSetting('notificationsEnabled', true);
+      await this.setSetting('notificationStartTime', '08:00');
+      await this.setSetting('notificationEndTime', '22:00');
+      await this.setSetting('notificationFrequency', 'sixty');
+    }
+
+    // Migration: Fix old string values to proper types
+    await this.migrateOldSettings();
+  }
+
+  // Migrate old settings from string to proper types
+  async migrateOldSettings() {
+    try {
+      // Fix notificationsEnabled if it's stored as string
+      const notifEnabled = await this.getSetting('notificationsEnabled');
+      if (typeof notifEnabled === 'string') {
+        await this.setSetting('notificationsEnabled', notifEnabled === 'true');
+      }
+
+      // Fix dailyGoal if it's stored as string
+      const goal = await this.getSetting('dailyGoal');
+      if (typeof goal === 'string') {
+        await this.setSetting('dailyGoal', parseInt(goal) || 2000);
+      }
+
+      // Also check for old snake_case keys and migrate them
+      const oldNotifEnabled = await this.getSetting('notifications_enabled');
+      if (oldNotifEnabled !== null) {
+        await this.setSetting('notificationsEnabled', Boolean(oldNotifEnabled));
+        // Optionally delete old key (we'll keep it for backwards compat)
+      }
+
+      const oldGoal = await this.getSetting('daily_goal');
+      if (oldGoal !== null) {
+        await this.setSetting('dailyGoal', parseInt(oldGoal) || 2000);
+      }
+
+      const oldStartTime = await this.getSetting('notification_start_time');
+      if (oldStartTime !== null) {
+        await this.setSetting('notificationStartTime', oldStartTime);
+      }
+
+      const oldEndTime = await this.getSetting('notification_end_time');
+      if (oldEndTime !== null) {
+        await this.setSetting('notificationEndTime', oldEndTime);
+      }
+
+      const oldFreq = await this.getSetting('notification_frequency');
+      if (oldFreq !== null) {
+        await this.setSetting('notificationFrequency', oldFreq);
+      }
+    } catch (error) {
+      console.error('Migration error:', error);
     }
   }
 
@@ -384,7 +433,7 @@ class DatabaseService {
       }
 
       // Fallback to default setting
-      const defaultGoal = await this.getSetting('daily_goal', 2000);
+      const defaultGoal = await this.getSetting('dailyGoal', 2000);
       return parseInt(defaultGoal);
     } catch (error) {
       console.error('Failed to get daily goal:', error);
@@ -412,7 +461,7 @@ class DatabaseService {
     if (!this.isInitialized) await this.initialize();
 
     try {
-      const defaultGoal = await this.getSetting('daily_goal', 2000);
+      const defaultGoal = await this.getSetting('dailyGoal', 2000);
       
       const results = await this.db.getAllAsync(`
         SELECT 

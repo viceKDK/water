@@ -170,7 +170,7 @@ class NotificationService {
         content: {
           title: title,
           body: body,
-          sound: 'default',
+          sound: true,
           priority: Notifications.AndroidNotificationPriority.DEFAULT,
           color: '#4A90E2',
           categoryIdentifier: 'water-reminder',
@@ -195,7 +195,7 @@ class NotificationService {
         content: {
           title: title,
           body: body,
-          sound: 'default',
+          sound: true,
           priority: Notifications.AndroidNotificationPriority.HIGH,
           color: '#4A90E2',
         },
