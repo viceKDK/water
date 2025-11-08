@@ -1,15 +1,8 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
-import { Platform } from 'react-native';
 
-// Import services based on platform
-let DatabaseService, NotificationService;
-if (Platform.OS === 'web') {
-  DatabaseService = require('../services/DatabaseService.web.js').default;
-  NotificationService = require('../services/NotificationService.web.js').default;
-} else {
-  DatabaseService = require('../services/DatabaseService.js').default;
-  NotificationService = require('../services/NotificationService.js').default;
-}
+// Import native services (mobile only - no web support)
+import DatabaseService from '../services/DatabaseService';
+import NotificationService from '../services/NotificationService';
 
 // Initial state
 const initialState = {
@@ -218,30 +211,19 @@ export const AppProvider = ({ children }) => {
       // Initialize database
       await DatabaseService.initialize();
 
-      // Load initial data  
-      const todayEntries = Platform.OS === 'web' 
-        ? await DatabaseService.getTodayWaterIntake()
-        : await DatabaseService.getDailyIntake();
-      
-      const containers = Platform.OS === 'web'
-        ? await DatabaseService.getContainers() 
-        : await DatabaseService.getAllContainers();
-        
-      const settings = Platform.OS === 'web'
-        ? await DatabaseService.getSettings()
-        : {
-            dailyGoal: await DatabaseService.getSetting('dailyGoal', 2000),
-            notificationsEnabled: Boolean(await DatabaseService.getSetting('notificationsEnabled', true)),
-            notificationStartTime: await DatabaseService.getSetting('notificationStartTime', '08:00'),
-            notificationEndTime: await DatabaseService.getSetting('notificationEndTime', '22:00'),
-            notificationFrequency: await DatabaseService.getSetting('notificationFrequency', 'sixty'),
-            unit: await DatabaseService.getSetting('unit', 'ml')
-          };
+      // Load initial data (native SQLite only)
+      const dailyIntake = await DatabaseService.getDailyIntake();
 
-      // Calculate current intake
-      const dailyIntake = Platform.OS === 'web' 
-        ? todayEntries.reduce((sum, entry) => sum + entry.amount, 0)
-        : todayEntries;
+      const containers = await DatabaseService.getAllContainers();
+
+      const settings = {
+        dailyGoal: await DatabaseService.getSetting('dailyGoal', 2000),
+        notificationsEnabled: Boolean(await DatabaseService.getSetting('notificationsEnabled', true)),
+        notificationStartTime: await DatabaseService.getSetting('notificationStartTime', '08:00'),
+        notificationEndTime: await DatabaseService.getSetting('notificationEndTime', '22:00'),
+        notificationFrequency: await DatabaseService.getSetting('notificationFrequency', 'sixty'),
+        unit: await DatabaseService.getSetting('unit', 'ml')
+      };
 
       dispatch({
         type: ActionTypes.INITIALIZE_APP,
@@ -250,7 +232,7 @@ export const AppProvider = ({ children }) => {
           dailyGoal: settings.dailyGoal || 2000,
           containers: containers,
           settings: settings,
-          todayEntries: Platform.OS === 'web' ? todayEntries : [],
+          todayEntries: [],
           stats: {
             ...initialState.stats,
             streak: 0,
@@ -290,12 +272,8 @@ export const AppProvider = ({ children }) => {
 
     setDailyGoal: async (goalAmount) => {
       try {
-        // Update in database
-        if (Platform.OS === 'web') {
-          await DatabaseService.updateSettings({ dailyGoal: goalAmount });
-        } else {
-          await DatabaseService.setSetting('dailyGoal', goalAmount);
-        }
+        // Update in database (native only)
+        await DatabaseService.setSetting('dailyGoal', goalAmount);
 
         dispatch({
           type: ActionTypes.SET_DAILY_GOAL,
@@ -310,14 +288,9 @@ export const AppProvider = ({ children }) => {
     // Settings actions
     updateSettings: async (newSettings) => {
       try {
-        // Update settings in database
-        if (Platform.OS === 'web') {
-          await DatabaseService.updateSettings(newSettings);
-        } else {
-          // For native, update each setting individually
-          for (const [key, value] of Object.entries(newSettings)) {
-            await DatabaseService.setSetting(key, value);
-          }
+        // Update each setting individually (native SQLite only)
+        for (const [key, value] of Object.entries(newSettings)) {
+          await DatabaseService.setSetting(key, value);
         }
 
         dispatch({
@@ -333,28 +306,20 @@ export const AppProvider = ({ children }) => {
     // Container actions
     addContainer: async (containerData) => {
       try {
-        if (Platform.OS === 'web') {
-          const newContainer = await DatabaseService.addContainer(containerData);
-          dispatch({
-            type: ActionTypes.ADD_CONTAINER,
-            payload: newContainer,
-          });
-          return newContainer.id;
-        } else {
-          const containerId = await DatabaseService.createContainer(
-            containerData.name,
-            containerData.volume,
-            containerData.type,
-            containerData.color,
-            containerData.isCustom
-          );
-          const newContainer = { ...containerData, id: containerId };
-          dispatch({
-            type: ActionTypes.ADD_CONTAINER,
-            payload: newContainer,
-          });
-          return containerId;
-        }
+        // Native SQLite only
+        const containerId = await DatabaseService.createContainer(
+          containerData.name,
+          containerData.volume,
+          containerData.type,
+          containerData.color,
+          containerData.isCustom
+        );
+        const newContainer = { ...containerData, id: containerId };
+        dispatch({
+          type: ActionTypes.ADD_CONTAINER,
+          payload: newContainer,
+        });
+        return containerId;
       } catch (error) {
         console.error('Failed to add container:', error);
         dispatch({ type: ActionTypes.SET_ERROR, payload: error.message });
@@ -412,10 +377,8 @@ export const AppProvider = ({ children }) => {
 
     resetAllData: async () => {
       try {
-        // Clear localStorage for web or SQLite for native
-        if (Platform.OS === 'web') {
-          localStorage.clear();
-        }
+        // Reset SQLite database (native only)
+        await DatabaseService.resetAllData();
         await initializeApp();
       } catch (error) {
         console.error('Failed to reset data:', error);

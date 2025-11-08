@@ -1,11 +1,17 @@
-# Explicación: ¿Por qué hay dos archivos de base de datos?
+# ~~Explicación: ¿Por qué había dos archivos de base de datos?~~ [ACTUALIZADO]
 
-## Archivos involucrados
+## ⚠️ ACTUALIZACIÓN: Soporte Web Eliminado
 
-1. **`src/services/DatabaseService.js`** - Base de datos para móviles (iOS/Android)
-2. **`src/services/DatabaseService.web.js`** - Base de datos para web (navegador)
+Esta app ahora es **solo para móviles (iOS/Android)**. Se eliminó el soporte web.
 
-## ¿Por qué existen dos versiones?
+## Estado Actual
+
+✅ **`src/services/DatabaseService.js`** - Base de datos SQLite para móviles (única versión)
+❌ **`src/services/DatabaseService.web.js`** - ~~ELIMINADO~~ (ya no es necesario)
+
+---
+
+## Historial: ¿Por qué existían dos versiones?
 
 Expo permite que tu aplicación se ejecute en **múltiples plataformas**:
 - 📱 iOS
