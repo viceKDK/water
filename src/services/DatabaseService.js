@@ -684,7 +684,7 @@ class DatabaseService {
         {
           id: 'weekend',
           name: 'Weekend Warrior',
-          description: 'Don\\'t break your streak over the weekend',
+          description: "Don't break your streak over the weekend",
           goal_type: 'weekend_streak',
           goal_value: 2,
           duration_days: 2,
