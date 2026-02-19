@@ -1,8 +1,8 @@
 # WaterMinder Personal
 
-![License](https://img.shields.io/badge/license-MIT-blue.svg)
-![Platform](https://img.shields.io/badge/platform-iOS%20%7C%20Android-lightgrey.svg)
-![Framework](https://img.shields.io/badge/framework-Expo%20(React%20Native)-4630EB.svg)
+![License](https://img.shields.io/badge/License-MIT-blue)
+![Platform](https://img.shields.io/badge/Platform-iOS_|_Android-lightgrey)
+![Framework](https://img.shields.io/badge/Framework-Expo_(React_Native)-4630EB)
 
 Una aplicación personal de seguimiento de hidratación inspirada en WaterMinder, diseñada para ser simple, visual y enfocada en la privacidad de los datos mediante un enfoque **offline-first**.
 
