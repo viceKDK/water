@@ -75,6 +75,8 @@ web-build/
 .claude/
 .cursor/
 PROMPTS.md
+SECURITY_ROADMAP.md
+TODO.md
 
 # Assets to ignore
 assets/ChatGPT Image 15 nov 2025, 04_30_20.png
