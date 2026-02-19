@@ -179,13 +179,12 @@ const StatsScreen = () => {
           {/* Main number with ml */}
           <SvgText
             x={center}
-            y={center - 20}
+            y={center - 15}
             textAnchor="middle"
-            fontWeight="bold"
             fill="#4A90E2"
           >
-            <TSpan fontSize={22}>{consumed}</TSpan>
-            <TSpan fontSize={12} dx={-11} fill="#888">ml</TSpan>
+            <TSpan fontSize={22} fontWeight="bold">{consumed}</TSpan>
+            <TSpan fontSize={12} fill="#888"> ml</TSpan>
           </SvgText>
           {/* "of" text */}
           <SvgText
@@ -200,13 +199,12 @@ const StatsScreen = () => {
           {/* Goal amount with ml */}
           <SvgText
             x={center}
-            y={center + 35}
+            y={center + 30}
             textAnchor="middle"
-            fontWeight="bold"
             fill="#666"
           >
-            <TSpan fontSize={22}>{goal}</TSpan>
-            <TSpan fontSize={12} dx={-11} fill="#888">ml</TSpan>
+            <TSpan fontSize={22} fontWeight="bold">{goal}</TSpan>
+            <TSpan fontSize={12} fill="#888"> ml</TSpan>
           </SvgText>
         </Svg>
       </View>

@@ -144,8 +144,8 @@ class DatabaseService {
     if (existingContainers.count === 0) {
       console.log('➕ Creating default containers...');
       const defaultContainers = [
-        { id: 'glass-250', name: 'Glass', volume: 250, type: 'wine-outline', color: '#4A90E2' },
-        { id: 'bottle-500', name: 'Bottle', volume: 500, type: 'bottle-outline', color: '#87CEEB' },
+        { id: 'glass-250', name: 'Glass', volume: 250, type: 'water-outline', color: '#4A90E2' },
+        { id: 'bottle-500', name: 'Bottle', volume: 500, type: 'water-outline', color: '#87CEEB' },
         { id: 'large-1000', name: 'Large Bottle', volume: 1000, type: 'flask-outline', color: '#4CAF50' },
       ];
 
@@ -165,7 +165,7 @@ class DatabaseService {
     const defaultGoal = await this.getSetting('dailyGoal');
     if (!defaultGoal) {
       console.log('➕ Setting default daily goal...');
-      await this.setSetting('dailyGoal', 2000);
+      await this.setSetting('dailyGoal', 1500);
     }
 
     // Set default notification settings
@@ -207,7 +207,7 @@ class DatabaseService {
       // Fix dailyGoal if it's stored as string
       const goal = await this.getSetting('dailyGoal');
       if (typeof goal === 'string') {
-        await this.setSetting('dailyGoal', parseInt(goal) || 2000);
+        await this.setSetting('dailyGoal', parseInt(goal) || 1500);
       }
 
       // Also check for old snake_case keys and migrate them
@@ -219,7 +219,7 @@ class DatabaseService {
 
       const oldGoal = await this.getSetting('daily_goal');
       if (oldGoal !== null) {
-        await this.setSetting('dailyGoal', parseInt(oldGoal) || 2000);
+        await this.setSetting('dailyGoal', parseInt(oldGoal) || 1500);
       }
 
       const oldStartTime = await this.getSetting('notification_start_time');
@@ -236,8 +236,23 @@ class DatabaseService {
       if (oldFreq !== null) {
         await this.setSetting('notificationFrequency', oldFreq);
       }
+
+      // Fix invalid icon names from previous versions
+      await this.fixInvalidContainerIcons();
     } catch (error) {
       console.error('Migration error:', error);
+    }
+  }
+
+  async fixInvalidContainerIcons() {
+    try {
+      await this.db.runAsync(`
+        UPDATE containers
+        SET type = 'water-outline'
+        WHERE type IN ('bottle-outline')
+      `);
+    } catch (error) {
+      console.error('Failed to fix container icons:', error);
     }
   }
 
@@ -529,11 +544,11 @@ class DatabaseService {
       }
 
       // Fallback to default setting
-      const defaultGoal = await this.getSetting('dailyGoal', 2000);
+      const defaultGoal = await this.getSetting('dailyGoal', 1500);
       return parseInt(defaultGoal);
     } catch (error) {
       console.error('Failed to get daily goal:', error);
-      return 2000;
+      return 1500;
     }
   }
 
@@ -557,7 +572,7 @@ class DatabaseService {
     if (!this.isInitialized) await this.initialize();
 
     try {
-      const defaultGoal = await this.getSetting('dailyGoal', 2000);
+      const defaultGoal = await this.getSetting('dailyGoal', 1500);
       
       const results = await this.db.getAllAsync(`
         SELECT 

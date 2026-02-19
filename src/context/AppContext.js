@@ -12,7 +12,7 @@ import TamperDetectionService from '../services/TamperDetectionService';
 const initialState = {
   // Water intake data
   currentIntake: 0,
-  dailyGoal: 2000,
+  dailyGoal: 1500,
   todayEntries: [],
   
   // Settings
@@ -239,7 +239,7 @@ export const AppProvider = ({ children }) => {
 
       console.log('⚙️ Loading settings...');
       const settings = {
-        dailyGoal: await DatabaseService.getSetting('dailyGoal', 2000),
+        dailyGoal: await DatabaseService.getSetting('dailyGoal', 1500),
         notificationsEnabled: Boolean(await DatabaseService.getSetting('notificationsEnabled', true)),
         notificationStartTime: await DatabaseService.getSetting('notificationStartTime', '08:00'),
         notificationEndTime: await DatabaseService.getSetting('notificationEndTime', '22:00'),
@@ -252,7 +252,7 @@ export const AppProvider = ({ children }) => {
         type: ActionTypes.INITIALIZE_APP,
         payload: {
           currentIntake: dailyIntake,
-          dailyGoal: settings.dailyGoal || 2000,
+          dailyGoal: settings.dailyGoal || 1500,
           containers: containers,
           settings: settings,
           todayEntries: [],

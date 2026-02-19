@@ -214,33 +214,6 @@ const CustomContainerModal = ({
     handleInputChange('unit', newUnit);
   };
 
-  const PreviewContainer = () => {
-    const selectedType = CONTAINER_TYPES.find(t => t.id === formData.type);
-    const volumeInMl = formData.volume ? 
-      Math.round(parseFloat(formData.volume) * UNITS.find(u => u.id === formData.unit).multiplier) : 0;
-
-    return (
-      <View style={styles.previewSection}>
-        <Text style={styles.sectionTitle}>Preview</Text>
-        <View style={styles.previewContainer}>
-          <View style={[styles.containerButton, { opacity: formData.name && formData.type ? 1 : 0.5 }]}>
-            <View style={[styles.containerIconContainer, { backgroundColor: formData.color }]}>
-              {formData.type && (
-                <Ionicons name={formData.type} size={24} color="#FFFFFF" />
-              )}
-            </View>
-            <Text style={styles.containerLabel} numberOfLines={1}>
-              {formData.name || 'Container Name'}
-            </Text>
-            <Text style={styles.containerAmount}>
-              {volumeInMl > 0 ? `${volumeInMl}ml` : '0ml'}
-            </Text>
-          </View>
-        </View>
-      </View>
-    );
-  };
-
   return (
     <Modal
       visible={visible}
@@ -374,9 +347,6 @@ const CustomContainerModal = ({
                 </View>
                 {errors.color && <Text style={styles.errorText}>{errors.color}</Text>}
               </View>
-
-              {/* Preview */}
-              <PreviewContainer />
             </ScrollView>
           </SafeAreaView>
         </Animated.View>
@@ -553,56 +523,6 @@ const styles = StyleSheet.create({
   },
   selectedColor: {
     borderColor: '#333',
-  },
-  previewSection: {
-    marginVertical: 20,
-    paddingBottom: 40,
-  },
-  previewContainer: {
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: '#E8F4F8',
-  },
-  containerButton: {
-    alignItems: 'center',
-    backgroundColor: '#F0F9FF',
-    borderRadius: 15,
-    paddingVertical: 15,
-    paddingHorizontal: 20,
-    minWidth: 100,
-    borderWidth: 1,
-    borderColor: '#E0F2FE',
-  },
-  containerIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  containerLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 2,
-    textAlign: 'center',
-  },
-  containerAmount: {
-    fontSize: 12,
-    color: '#4A90E2',
-    fontWeight: '500',
   },
 });
 

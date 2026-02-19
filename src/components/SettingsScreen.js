@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -45,7 +45,8 @@ const SettingsScreen = () => {
   } = useApp();
 
   // Local UI state
-  const [localDailyGoal, setLocalDailyGoal] = useState(contextDailyGoal);
+  const [localDailyGoalRaw, setLocalDailyGoalRaw] = useState(contextDailyGoal);
+  const isSlidingRef = useRef(false);
   
   // Force boolean conversion for notificationsEnabled
   const initialNotifEnabled = Boolean(settings?.notificationsEnabled);
@@ -81,7 +82,9 @@ const SettingsScreen = () => {
 
   // Sync local state with context
   useEffect(() => {
-    setLocalDailyGoal(contextDailyGoal);
+    if (!isSlidingRef.current) {
+      setLocalDailyGoalRaw(contextDailyGoal);
+    }
   }, [contextDailyGoal]);
 
   useEffect(() => {
@@ -128,20 +131,33 @@ const SettingsScreen = () => {
     }
   };
 
+  const snapGoal = (value) => {
+    // Snap to nearest 50ml, but do it only when persisting
+    const clamped = Math.max(0, Math.min(5000, value));
+    return Math.round(clamped / 50) * 50;
+  };
+
+  const displayDailyGoal = isSlidingRef.current
+    ? Math.round(localDailyGoalRaw)
+    : snapGoal(localDailyGoalRaw);
+
   const handleGoalChange = (value) => {
-    setLocalDailyGoal(value);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    // Keep movement smooth; no snap during drag
+    isSlidingRef.current = true;
+    setLocalDailyGoalRaw(value);
   };
 
   const handleGoalPreset = async (preset) => {
-    setLocalDailyGoal(preset);
+    setLocalDailyGoalRaw(preset);
     await updateDailyGoal(preset);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   };
 
-  // Update goal when slider is released
+  // Snap and persist when slider is released
   const handleGoalChangeEnd = async (value) => {
-    await updateDailyGoal(value);
+    const nextValue = snapGoal(value);
+    await updateDailyGoal(nextValue);
+    isSlidingRef.current = false;
   };
 
   const handleTimeChange = async (event, selectedTime, type) => {
@@ -309,18 +325,18 @@ const SettingsScreen = () => {
         <SettingSection title="Daily Goal">
           <View style={styles.goalContainer}>
             <View style={styles.goalDisplay}>
-              <Text style={styles.goalValue}>{localDailyGoal.toLocaleString()}</Text>
+              <Text style={styles.goalValue}>{displayDailyGoal.toLocaleString()}</Text>
               <Text style={styles.goalUnit}>ml</Text>
             </View>
             
             <Slider
               style={styles.goalSlider}
-              minimumValue={500}
+              minimumValue={0}
               maximumValue={5000}
-              value={localDailyGoal}
+              step={50}
+              value={localDailyGoalRaw}
               onValueChange={handleGoalChange}
               onSlidingComplete={handleGoalChangeEnd}
-              step={50}
               minimumTrackTintColor="#4A90E2"
               maximumTrackTintColor="#E8F4F8"
               thumbTintColor="#4A90E2"
@@ -330,10 +346,10 @@ const SettingsScreen = () => {
               {GOAL_PRESETS.map(preset => (
                 <TouchableOpacity
                   key={preset}
-                  style={[styles.presetButton, localDailyGoal === preset && styles.activePreset]}
+                  style={[styles.presetButton, displayDailyGoal === preset && styles.activePreset]}
                   onPress={() => handleGoalPreset(preset)}
                 >
-                  <Text style={[styles.presetText, localDailyGoal === preset && styles.activePresetText]}>
+                  <Text style={[styles.presetText, displayDailyGoal === preset && styles.activePresetText]}>
                     {preset === 1500 ? '1.5L' : `${preset / 1000}L`}
                   </Text>
                 </TouchableOpacity>
