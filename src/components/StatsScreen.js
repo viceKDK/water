@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, {
   Circle,
   Rect,
+  Path,
   Text as SvgText,
   G,
   Defs,
@@ -192,40 +193,133 @@ const StatsScreen = () => {
     );
   };
 
-  const HourlyBars = ({ hourlyData }) => {
-    const maxValue = Math.max(...hourlyData, 1);
-    const barWidth = (CHART_WIDTH - 60) / 24;
+  const HourlyLineChart = ({ hourlyData }) => {
+    // El eje Y va de 0 hasta el goal diario
+    const chartMax = dailyGoal;
+    const padL = 36, padR = 8, padT = 15, padB = 30;
+    const svgW = CHART_WIDTH - 40; // descontar padding del chartContainer (20 cada lado)
+    const innerW = svgW - padL - padR;
+    const innerH = CHART_HEIGHT - padT - padB;
+
+    const getX = (i) => +(padL + (i / 23) * innerW).toFixed(1);
+    const getY = (v) => +(padT + innerH - (Math.min(v, chartMax) / chartMax) * innerH).toFixed(1);
+
+    const linePath = hourlyData
+      .map((v, i) => `${i === 0 ? 'M' : 'L'}${getX(i)},${getY(v)}`)
+      .join(' ');
+
+    const baseY = padT + innerH;
+    const fillPath = `${linePath} L${getX(23)},${baseY} L${getX(0)},${baseY} Z`;
+
+    // Ticks cada 500ml desde 0 hasta el goal
+    const yTicks = [];
+    for (let v = 0; v <= chartMax; v += 500) {
+      yTicks.push({ value: v, y: getY(v) });
+    }
 
     return (
       <View style={styles.chartContainer}>
         <Text style={styles.chartTitle}>Hourly Consumption</Text>
-        <Svg width={CHART_WIDTH} height={CHART_HEIGHT}>
-          {hourlyData.map((value, index) => {
-            const barHeight = (value / maxValue) * (CHART_HEIGHT - 60);
+        <Svg width={svgW} height={CHART_HEIGHT}>
+          <Defs>
+            <SvgLinearGradient id="hourlyFill" x1="0%" y1="0%" x2="0%" y2="100%">
+              <Stop offset="0%" stopColor="#4A90E2" stopOpacity={0.28} />
+              <Stop offset="100%" stopColor="#4A90E2" stopOpacity={0} />
+            </SvgLinearGradient>
+          </Defs>
+
+          {/* Grid lines + labels eje Y */}
+          {yTicks.map((tick) => {
+            const isGoal = tick.value === chartMax;
             return (
-              <G key={index}>
-                <Rect
-                  x={30 + index * barWidth + 2}
-                  y={CHART_HEIGHT - 30 - barHeight}
-                  width={barWidth - 4}
-                  height={barHeight}
-                  fill={value > 0 ? "#4A90E2" : "#E8F4F8"}
-                  rx={2}
+              <G key={tick.value}>
+                <Path
+                  d={`M${padL},${tick.y} L${padL + innerW},${tick.y}`}
+                  stroke={isGoal ? "#BDD8F5" : "#EEF6FC"}
+                  strokeWidth={isGoal ? 1.5 : 1}
+                  strokeDasharray={isGoal ? "4,3" : undefined}
                 />
-                {index % 4 === 0 && (
-                  <SvgText
-                    x={30 + index * barWidth + barWidth / 2}
-                    y={CHART_HEIGHT - 10}
-                    textAnchor="middle"
-                    fontSize={10}
-                    fill="#666"
-                  >
-                    {index}h
-                  </SvgText>
-                )}
+                <SvgText
+                  x={padL - 4}
+                  y={tick.y + 4}
+                  textAnchor="end"
+                  fontSize={9}
+                  fill={isGoal ? "#4A90E2" : "#AAA"}
+                  fontWeight={isGoal ? "bold" : "normal"}
+                >
+                  {tick.value === chartMax ? `${tick.value}` : `${tick.value}`}
+                </SvgText>
               </G>
             );
           })}
+
+          {/* Label "Goal" arriba del eje Y */}
+          <SvgText
+            x={padL - 4}
+            y={getY(chartMax) - 5}
+            textAnchor="end"
+            fontSize={8}
+            fill="#4A90E2"
+            fontWeight="bold"
+          >
+            Goal
+          </SvgText>
+
+          {/* Eje Y */}
+          <Path
+            d={`M${padL},${padT} L${padL},${padT + innerH}`}
+            stroke="#CCC"
+            strokeWidth={1}
+          />
+
+          {/* Eje X */}
+          <Path
+            d={`M${padL},${padT + innerH} L${padL + innerW},${padT + innerH}`}
+            stroke="#CCC"
+            strokeWidth={1}
+          />
+
+          {/* Área de relleno */}
+          <Path d={fillPath} fill="url(#hourlyFill)" />
+
+          {/* Línea */}
+          <Path
+            d={linePath}
+            stroke="#4A90E2"
+            strokeWidth={2.5}
+            fill="none"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+
+          {/* Puntos en horas con consumo */}
+          {hourlyData.map((v, i) =>
+            v > 0 ? (
+              <Circle
+                key={i}
+                cx={getX(i)}
+                cy={getY(v)}
+                r={3.5}
+                fill="#FFFFFF"
+                stroke="#4A90E2"
+                strokeWidth={2}
+              />
+            ) : null
+          )}
+
+          {/* Etiquetas eje X */}
+          {[0, 6, 12, 18, 23].map((h) => (
+            <SvgText
+              key={h}
+              x={getX(h)}
+              y={CHART_HEIGHT - 8}
+              textAnchor="middle"
+              fontSize={10}
+              fill="#888"
+            >
+              {h}h
+            </SvgText>
+          ))}
         </Svg>
       </View>
     );
@@ -380,7 +474,7 @@ const StatsScreen = () => {
         />
       </View>
 
-      <HourlyBars hourlyData={hourlyData} />
+      <HourlyLineChart hourlyData={hourlyData} />
     </ScrollView>
   );
 

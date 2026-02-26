@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,6 @@ import {
   Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 
@@ -20,34 +19,28 @@ import CustomContainerModal from './CustomContainerModal';
 import DatabaseService from '../services/DatabaseService';
 
 const { width, height } = Dimensions.get('window');
+const MAX_ITEMS = 5;
+
+const formatLiters = (ml) => `${parseFloat((ml / 1000).toFixed(2))}L`;
 
 const HomeScreen = () => {
-  const {
-    currentIntake,
-    dailyGoal,
-    containers,
-    loading,
-    logWater,
-    addContainer,
-  } = useApp();
+  const { currentIntake, dailyGoal, containers, loading, logWater, addContainer } = useApp();
 
-  const [animatedValue] = useState(new Animated.Value(0));
   const [showContainerModal, setShowContainerModal] = useState(false);
   const [streak, setStreak] = useState(0);
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  const itemAnims = useRef(
+    Array.from({ length: MAX_ITEMS }, () => new Animated.ValueXY({ x: 0, y: 0 }))
+  ).current;
+  const itemOpacities = useRef(
+    Array.from({ length: MAX_ITEMS }, () => new Animated.Value(0))
+  ).current;
+  const plusRotation = useRef(new Animated.Value(0)).current;
 
   const progressPercentage = Math.min((currentIntake / dailyGoal) * 100, 100);
 
-  useEffect(() => {
-    loadStreak();
-  }, []);
-
-  useEffect(() => {
-    Animated.timing(animatedValue, {
-      toValue: progressPercentage,
-      duration: 1000,
-      useNativeDriver: false,
-    }).start();
-  }, [currentIntake]);
+  useEffect(() => { loadStreak(); }, []);
 
   const loadStreak = async () => {
     try {
@@ -58,15 +51,59 @@ const HomeScreen = () => {
     }
   };
 
-  const getCurrentDate = () => {
-    const today = new Date();
-    const options = { 
-      weekday: 'long', 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
-    };
-    return today.toLocaleDateString('en-US', options);
+  const getCurrentDate = () =>
+    new Date().toLocaleDateString('en-US', {
+      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+    });
+
+  // Returns spread positions (fan above the + button)
+  const getSpreadPositions = (count) => {
+    const radius = 110;
+    const startAngle = 210;
+    const endAngle = 330;
+    return Array.from({ length: count }, (_, i) => {
+      const angle = count === 1
+        ? 270
+        : startAngle + (i / (count - 1)) * (endAngle - startAngle);
+      const rad = (angle * Math.PI) / 180;
+      return {
+        x: Math.cos(rad) * radius,
+        y: Math.sin(rad) * radius, // negative y = upward in screen coords
+      };
+    });
+  };
+
+  const toggleMenu = () => {
+    const count = Math.min(containers.length, MAX_ITEMS);
+    if (menuOpen) {
+      Animated.parallel([
+        Animated.timing(plusRotation, { toValue: 0, duration: 250, useNativeDriver: true }),
+        ...itemAnims.slice(0, count).map(anim =>
+          Animated.spring(anim, { toValue: { x: 0, y: 0 }, friction: 6, useNativeDriver: true })
+        ),
+        ...itemOpacities.slice(0, count).map(anim =>
+          Animated.timing(anim, { toValue: 0, duration: 150, useNativeDriver: true })
+        ),
+      ]).start(() => setMenuOpen(false));
+    } else {
+      setMenuOpen(true);
+      const positions = getSpreadPositions(count);
+      Animated.parallel([
+        Animated.timing(plusRotation, { toValue: 1, duration: 250, useNativeDriver: true }),
+        ...itemAnims.slice(0, count).map((anim, i) =>
+          Animated.spring(anim, {
+            toValue: positions[i],
+            friction: 5,
+            tension: 80,
+            useNativeDriver: true,
+          })
+        ),
+        ...itemOpacities.slice(0, count).map(anim =>
+          Animated.timing(anim, { toValue: 1, duration: 200, useNativeDriver: true })
+        ),
+      ]).start();
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
   };
 
   const handleLogWater = async (amount, containerId = null) => {
@@ -89,48 +126,10 @@ const HomeScreen = () => {
     }
   };
 
-
-  const ContainerButton = ({ container, onPress }) => {
-    const scaleAnim = useRef(new Animated.Value(1)).current;
-
-    const handlePressIn = () => {
-      Animated.spring(scaleAnim, {
-        toValue: 0.95,
-        useNativeDriver: true,
-      }).start();
-    };
-
-    const handlePressOut = () => {
-      Animated.spring(scaleAnim, {
-        toValue: 1,
-        friction: 3,
-        tension: 40,
-        useNativeDriver: true,
-      }).start();
-    };
-
-    return (
-      <TouchableOpacity
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
-        onPress={() => onPress(container.volume, container.id)}
-        activeOpacity={1}
-      >
-        <Animated.View
-          style={[
-            styles.containerButton,
-            { transform: [{ scale: scaleAnim }] },
-          ]}
-        >
-          <View style={[styles.containerIconContainer, { backgroundColor: container.color }]}>
-            <Ionicons name={container.type} size={28} color="#FFFFFF" />
-          </View>
-          <Text style={styles.containerLabel}>{container.name}</Text>
-          <Text style={styles.containerAmount}>{container.volume}ml</Text>
-        </Animated.View>
-      </TouchableOpacity>
-    );
-  };
+  const plusRotateDeg = plusRotation.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '45deg'],
+  });
 
   if (loading) {
     return (
@@ -146,7 +145,16 @@ const HomeScreen = () => {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-      
+
+      {/* Backdrop — closes menu when tapping outside */}
+      {menuOpen && (
+        <TouchableOpacity
+          style={StyleSheet.absoluteFillObject}
+          onPress={toggleMenu}
+          activeOpacity={1}
+        />
+      )}
+
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerTop}>
@@ -159,14 +167,12 @@ const HomeScreen = () => {
           )}
         </View>
         <View style={styles.progressHeader}>
-          <Text style={styles.intakeText}>
-            {currentIntake.toLocaleString()}ml
-          </Text>
+          <Text style={styles.intakeText}>{currentIntake.toLocaleString()}ml</Text>
           <Text style={styles.goalText}>/ {dailyGoal.toLocaleString()}ml</Text>
         </View>
       </View>
 
-      {/* Main Visualization Area */}
+      {/* Human figure */}
       <View style={styles.visualizationContainer}>
         <Image
           source={require('../../assets/Gemini_Generated_Image_jq6ze7jq6ze7jq6z.png')}
@@ -175,29 +181,59 @@ const HomeScreen = () => {
         />
       </View>
 
-      {/* Quick Log Panel */}
-      <View style={styles.quickLogPanel}>
-        <View style={styles.containerButtonsRow}>
-          {containers.slice(0, 3).map((container) => (
-            <ContainerButton
+      {/* Bottom row: spacer | FAB radial menu | edit icon */}
+      <View style={styles.bottomRow}>
+        <View style={{ width: 44 }} />
+
+        {/* FAB wrapper — floating items are positioned relative to this */}
+        <View style={styles.fabWrapper}>
+          {containers.slice(0, MAX_ITEMS).map((container, i) => (
+            <Animated.View
               key={container.id}
-              container={container}
-              onPress={handleLogWater}
-            />
+              pointerEvents={menuOpen ? 'auto' : 'none'}
+              style={[
+                styles.floatingItem,
+                {
+                  opacity: itemOpacities[i],
+                  transform: [
+                    { translateX: itemAnims[i].x },
+                    { translateY: itemAnims[i].y },
+                  ],
+                },
+              ]}
+            >
+              <TouchableOpacity
+                onPress={() => {
+                  handleLogWater(container.volume, container.id);
+                  toggleMenu();
+                }}
+                style={styles.floatingItemButton}
+              >
+                <View style={[styles.floatingIconCircle, { backgroundColor: container.color }]}>
+                  <Ionicons name={container.type} size={22} color="#FFFFFF" />
+                </View>
+                <Text style={styles.floatingItemLabel}>{formatLiters(container.volume)}</Text>
+              </TouchableOpacity>
+            </Animated.View>
           ))}
+
+          {/* + / × button */}
+          <TouchableOpacity style={styles.plusButton} onPress={toggleMenu}>
+            <Animated.View style={{ transform: [{ rotate: plusRotateDeg }] }}>
+              <Ionicons name="add" size={36} color="#FFFFFF" />
+            </Animated.View>
+          </TouchableOpacity>
         </View>
 
-        {/* Custom Container Button */}
-        <TouchableOpacity 
-          style={styles.customButton}
+        {/* Edit / add container icon */}
+        <TouchableOpacity
+          style={styles.customIconButton}
           onPress={() => setShowContainerModal(true)}
         >
-          <Ionicons name="add-circle-outline" size={24} color="#4A90E2" />
-          <Text style={styles.customButtonText}>Add Custom Container</Text>
+          <Ionicons name="pencil-outline" size={22} color="#aaa" />
         </TouchableOpacity>
       </View>
 
-      {/* Custom Container Modal */}
       <CustomContainerModal
         visible={showContainerModal}
         onClose={() => setShowContainerModal(false)}
@@ -252,7 +288,7 @@ const styles = StyleSheet.create({
   intakeText: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#00B4DB',
+    color: '#0096C7',
   },
   goalText: {
     fontSize: 18,
@@ -265,73 +301,77 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   humanImage: {
-    width: width * 0.55,
-    height: height * 0.45,
+    width: width * 0.62,
+    height: height * 0.56,
   },
-  quickLogPanel: {
+  // ── Bottom row ──────────────────────────────────────────
+  bottomRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingBottom: 32,
+    paddingTop: 12,
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    gap: 24,
   },
-  quickLogTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  containerButtonsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 25,
-  },
-  containerButton: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 18,
-    paddingHorizontal: 8,
-    marginHorizontal: 5,
-  },
-  containerIconContainer: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#FFFFFF',
+  // FAB + radial items
+  fabWrapper: {
+    width: 64,
+    height: 64,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 10,
-    shadowColor: '#00B4DB',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.15,
+    overflow: 'visible',
+  },
+  floatingItem: {
+    position: 'absolute',
+    alignItems: 'center',
+    width: 70,
+    left: -3,   // (64 - 70) / 2
+    top: -2,
+    zIndex: 0,
+  },
+  floatingItemButton: {
+    alignItems: 'center',
+  },
+  floatingIconCircle: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.22,
     shadowRadius: 5,
-    elevation: 3,
+    elevation: 6,
   },
-  containerLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 4,
-  },
-  containerAmount: {
+  floatingItemLabel: {
     fontSize: 12,
-    color: '#00B4DB',
-    fontWeight: '600',
+    fontWeight: '700',
+    color: '#444',
+    marginTop: 4,
   },
-  customButton: {
-    flexDirection: 'row',
+  plusButton: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#0096C7',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 15,
-    marginTop: 10,
+    shadowColor: '#0096C7',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 8,
+    zIndex: 1,
   },
-  customButtonText: {
-    fontSize: 16,
-    color: '#4A90E2',
-    fontWeight: '600',
-    marginLeft: 8,
+  customIconButton: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
+  // ── Loading ──────────────────────────────────────────────
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
