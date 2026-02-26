@@ -8,11 +8,10 @@ import {
   Dimensions,
   StatusBar,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import Svg, { Path, Defs, LinearGradient as SvgLinearGradient, Stop, Rect, ClipPath } from 'react-native-svg';
-import { CircularProgress } from 'react-native-circular-progress';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 
@@ -35,7 +34,6 @@ const HomeScreen = () => {
   const [animatedValue] = useState(new Animated.Value(0));
   const [showContainerModal, setShowContainerModal] = useState(false);
   const [streak, setStreak] = useState(0);
-  const [splashAnimations, setSplashAnimations] = useState([]);
 
   const progressPercentage = Math.min((currentIntake / dailyGoal) * 100, 100);
 
@@ -71,27 +69,10 @@ const HomeScreen = () => {
     return today.toLocaleDateString('en-US', options);
   };
 
-  const triggerSplashAnimation = () => {
-    const newSplash = new Animated.Value(0);
-    setSplashAnimations(prev => [...prev, newSplash]);
-
-    Animated.parallel([
-      Animated.timing(newSplash, {
-        toValue: 1,
-        duration: 800,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      // Remove the animation from the array after it completes
-      setSplashAnimations(prev => prev.filter(anim => anim !== newSplash));
-    });
-  };
-
   const handleLogWater = async (amount, containerId = null) => {
     try {
       await logWater(amount, containerId);
-      await loadStreak(); // Reload streak after logging water
-      triggerSplashAnimation(); // Trigger splash animation
+      await loadStreak();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error) {
       console.error('Failed to log water:', error);
@@ -108,41 +89,6 @@ const HomeScreen = () => {
     }
   };
 
-  const HumanSilhouette = ({ fillPercentage }) => {
-    return (
-      <Svg width={120} height={200} viewBox="0 0 120 200">
-        <Defs>
-          <SvgLinearGradient id="waterGradient" x1="0%" y1="100%" x2="0%" y2="0%">
-            <Stop offset="0%" stopColor="#00B4DB" stopOpacity={0.8} />
-            <Stop offset="100%" stopColor="#0083B0" stopOpacity={0.9} />
-          </SvgLinearGradient>
-          <ClipPath id="waterClip">
-            <Rect
-              x={0}
-              y={200 - (fillPercentage * 2)}
-              width={120}
-              height={fillPercentage * 2}
-            />
-          </ClipPath>
-        </Defs>
-        
-        {/* Human silhouette outline */}
-        <Path
-          d="M60 20 C65 15, 75 15, 80 25 C85 35, 80 45, 75 50 L85 60 L85 120 L95 180 L85 195 L75 195 L70 160 L50 160 L45 195 L35 195 L25 180 L35 120 L35 60 L45 50 C40 45, 35 35, 40 25 C45 15, 55 15, 60 20 Z"
-          fill="none"
-          stroke="#E0E0E0"
-          strokeWidth="2"
-        />
-        
-        {/* Water fill */}
-        <Path
-          d="M60 20 C65 15, 75 15, 80 25 C85 35, 80 45, 75 50 L85 60 L85 120 L95 180 L85 195 L75 195 L70 160 L50 160 L45 195 L35 195 L25 180 L35 120 L35 60 L45 50 C40 45, 35 35, 40 25 C45 15, 55 15, 60 20 Z"
-          fill="url(#waterGradient)"
-          clipPath="url(#waterClip)"
-        />
-      </Svg>
-    );
-  };
 
   const ContainerButton = ({ container, onPress }) => {
     const scaleAnim = useRef(new Animated.Value(1)).current;
@@ -199,7 +145,7 @@ const HomeScreen = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F8FFFE" />
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
       
       {/* Header */}
       <View style={styles.header}>
@@ -222,60 +168,11 @@ const HomeScreen = () => {
 
       {/* Main Visualization Area */}
       <View style={styles.visualizationContainer}>
-        <View style={styles.circularProgressContainer}>
-          {/* Splash animations */}
-          {splashAnimations.map((anim, index) => (
-            <Animated.View
-              key={index}
-              style={[
-                styles.splashCircle,
-                {
-                  opacity: anim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [0.6, 0],
-                  }),
-                  transform: [
-                    {
-                      scale: anim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [0.5, 2],
-                      }),
-                    },
-                  ],
-                },
-              ]}
-            />
-          ))}
-          <CircularProgress
-            size={280}
-            width={8}
-            fill={progressPercentage}
-            tintColor="#00B4DB"
-            backgroundColor="#E8F4F8"
-            rotation={0}
-            lineCap="round"
-          >
-            {() => (
-              <View style={styles.humanContainer}>
-                <HumanSilhouette fillPercentage={progressPercentage} />
-                <Text style={styles.percentageText}>
-                  {Math.round(progressPercentage)}%
-                </Text>
-              </View>
-            )}
-          </CircularProgress>
-        </View>
-        
-        {/* Motivational Text */}
-        <Text style={styles.motivationText}>
-          {progressPercentage >= 100 
-            ? "🎉 Goal achieved! Great job!" 
-            : progressPercentage >= 75 
-            ? "Almost there! Keep it up!" 
-            : progressPercentage >= 50 
-            ? "You're halfway there!" 
-            : "Let's start hydrating!"}
-        </Text>
+        <Image
+          source={require('../../assets/Gemini_Generated_Image_jq6ze7jq6ze7jq6z.png')}
+          style={styles.humanImage}
+          resizeMode="contain"
+        />
       </View>
 
       {/* Quick Log Panel */}
@@ -315,7 +212,7 @@ const HomeScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FFFE',
+    backgroundColor: '#FFFFFF',
   },
   header: {
     paddingHorizontal: 20,
@@ -367,29 +264,11 @@ const styles = StyleSheet.create({
   visualizationContainer: {
     flex: 1,
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 20,
+    justifyContent: 'flex-end',
   },
-  circularProgressContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  humanContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  percentageText: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#00B4DB',
-    marginTop: 10,
-  },
-  motivationText: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-    marginTop: 20,
-    paddingHorizontal: 40,
+  humanImage: {
+    width: width * 0.55,
+    height: height * 0.45,
   },
   quickLogPanel: {
     backgroundColor: '#FFFFFF',
@@ -421,13 +300,9 @@ const styles = StyleSheet.create({
   containerButton: {
     flex: 1,
     alignItems: 'center',
-    backgroundColor: '#F0F9FF',
-    borderRadius: 15,
     paddingVertical: 18,
     paddingHorizontal: 8,
     marginHorizontal: 5,
-    borderWidth: 1,
-    borderColor: '#E0F2FE',
   },
   containerIconContainer: {
     width: 50,
@@ -461,12 +336,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F0F9FF',
-    borderRadius: 15,
     paddingVertical: 15,
-    borderWidth: 1,
-    borderColor: '#E0F2FE',
-    marginTop: 30,
+    marginTop: 10,
   },
   customButtonText: {
     fontSize: 16,
@@ -483,15 +354,6 @@ const styles = StyleSheet.create({
     marginTop: 10,
     fontSize: 16,
     color: '#666',
-  },
-  splashCircle: {
-    position: 'absolute',
-    width: 280,
-    height: 280,
-    borderRadius: 140,
-    borderWidth: 3,
-    borderColor: '#00B4DB',
-    backgroundColor: 'transparent',
   },
 });
 

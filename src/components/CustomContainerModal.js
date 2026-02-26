@@ -16,6 +16,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 
+import { getContainerIcon } from './WaterIcons';
+
 const { width, height } = Dimensions.get('window');
 
 const CONTAINER_TYPES = [
@@ -306,11 +308,7 @@ const CustomContainerModal = ({
                       ]}
                       onPress={() => handleTypeSelect(type.id)}
                     >
-                      <Ionicons
-                        name={type.id}
-                        size={28}
-                        color={formData.type === type.id ? '#4A90E2' : '#666'}
-                      />
+                      {getContainerIcon(type.id, 28, formData.type === type.id ? '#4A90E2' : '#666')}
                       <Text
                         style={[
                           styles.typeLabel,

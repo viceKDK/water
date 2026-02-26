@@ -15,8 +15,6 @@ import Svg, {
   Circle,
   Rect,
   Text as SvgText,
-  TSpan,
-  Line,
   G,
   Defs,
   LinearGradient as SvgLinearGradient,
@@ -50,9 +48,9 @@ const StatsScreen = () => {
     loadStatsData();
   }, []);
 
-  const loadStatsData = async () => {
+  const loadStatsData = async (isRefresh = false) => {
     console.log('📊 StatsScreen: Loading stats data...');
-    setLoading(true);
+    if (!isRefresh) setLoading(true);
     try {
       // Load hourly data for today
       console.log('📊 StatsScreen: Fetching hourly data...');
@@ -128,7 +126,7 @@ const StatsScreen = () => {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadStatsData();
+    await loadStatsData(true);
     setRefreshing(false);
   };
 
@@ -149,64 +147,47 @@ const StatsScreen = () => {
 
     return (
       <View style={styles.circularProgressContainer}>
-        <Svg width={size} height={size}>
-          <Defs>
-            <SvgLinearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-              <Stop offset="0%" stopColor="#4A90E2" />
-              <Stop offset="100%" stopColor="#87CEEB" />
-            </SvgLinearGradient>
-          </Defs>
-          <Circle
-            cx={center}
-            cy={center}
-            r={radius}
-            stroke="#E8F4F8"
-            strokeWidth={10}
-            fill="none"
-          />
-          <Circle
-            cx={center}
-            cy={center}
-            r={radius}
-            stroke="url(#progressGradient)"
-            strokeWidth={10}
-            fill="none"
-            strokeDasharray={strokeDasharray}
-            strokeDashoffset={strokeDashoffset}
-            strokeLinecap="round"
-            transform={`rotate(-90 ${center} ${center})`}
-          />
-          {/* Main number with ml */}
-          <SvgText
-            x={center}
-            y={center - 15}
-            textAnchor="middle"
-            fill="#4A90E2"
-          >
-            <TSpan fontSize={22} fontWeight="bold">{consumed}</TSpan>
-            <TSpan fontSize={12} fill="#888"> ml</TSpan>
-          </SvgText>
-          {/* "of" text */}
-          <SvgText
-            x={center}
-            y={center + 5}
-            textAnchor="middle"
-            fontSize={12}
-            fill="#888"
-          >
-            of
-          </SvgText>
-          {/* Goal amount with ml */}
-          <SvgText
-            x={center}
-            y={center + 30}
-            textAnchor="middle"
-            fill="#666"
-          >
-            <TSpan fontSize={22} fontWeight="bold">{goal}</TSpan>
-            <TSpan fontSize={12} fill="#888"> ml</TSpan>
-          </SvgText>
-        </Svg>
+        <View style={{ width: size, height: size }}>
+          <Svg width={size} height={size} style={{ position: 'absolute' }}>
+            <Defs>
+              <SvgLinearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <Stop offset="0%" stopColor="#4A90E2" />
+                <Stop offset="100%" stopColor="#87CEEB" />
+              </SvgLinearGradient>
+            </Defs>
+            <Circle
+              cx={center}
+              cy={center}
+              r={radius}
+              stroke="#E8F4F8"
+              strokeWidth={10}
+              fill="none"
+            />
+            <Circle
+              cx={center}
+              cy={center}
+              r={radius}
+              stroke="url(#progressGradient)"
+              strokeWidth={10}
+              fill="none"
+              strokeDasharray={strokeDasharray}
+              strokeDashoffset={strokeDashoffset}
+              strokeLinecap="round"
+              transform={`rotate(-90 ${center} ${center})`}
+            />
+          </Svg>
+          <View style={styles.circularProgressInner}>
+            <View style={styles.circularProgressRow}>
+              <Text style={styles.circularProgressNumber}>{consumed}</Text>
+              <Text style={styles.circularProgressUnit}> ml</Text>
+            </View>
+            <Text style={styles.circularProgressOf}>of</Text>
+            <View style={styles.circularProgressRow}>
+              <Text style={styles.circularProgressGoalNumber}>{goal}</Text>
+              <Text style={styles.circularProgressUnit}> ml</Text>
+            </View>
+          </View>
+        </View>
       </View>
     );
   };
@@ -306,11 +287,14 @@ const StatsScreen = () => {
   const MonthlyHeatMap = ({ monthlyData }) => {
     const maxValue = Math.max(...monthlyData.map(d => d.consumed));
     const minValue = Math.min(...monthlyData.map(d => d.consumed));
-    const cellSize = (CHART_WIDTH - 60) / 7;
+    // CHART_WIDTH = width-40 (tabContent padding), chartContainer has padding:20 on each side
+    const innerWidth = CHART_WIDTH - 40;
+    const cellSize = Math.floor(innerWidth / 7);
+    const svgWidth = cellSize * 7;
     const weeks = Math.ceil(monthlyData.length / 7);
+    const svgHeight = weeks * cellSize + 4;
 
     const getIntensity = (value) => {
-      // Handle case when all values are 0 or equal
       if (maxValue === minValue) {
         return value > 0 ? 0.5 : 0.2;
       }
@@ -326,7 +310,7 @@ const StatsScreen = () => {
     return (
       <View style={styles.chartContainer}>
         <Text style={styles.chartTitle}>Monthly Heat Map</Text>
-        <Svg width={CHART_WIDTH} height={weeks * cellSize + 40}>
+        <Svg width={svgWidth} height={svgHeight}>
           {monthlyData.map((day, index) => {
             const row = Math.floor(index / 7);
             const col = index % 7;
@@ -335,16 +319,16 @@ const StatsScreen = () => {
             return (
               <G key={index}>
                 <Rect
-                  x={30 + col * cellSize + 2}
-                  y={20 + row * cellSize + 2}
+                  x={col * cellSize + 2}
+                  y={row * cellSize + 2}
                   width={cellSize - 4}
                   height={cellSize - 4}
                   fill={getColor(intensity)}
                   rx={4}
                 />
                 <SvgText
-                  x={30 + col * cellSize + cellSize / 2}
-                  y={20 + row * cellSize + cellSize / 2 + 4}
+                  x={col * cellSize + cellSize / 2}
+                  y={row * cellSize + cellSize / 2 + 4}
                   textAnchor="middle"
                   fontSize={10}
                   fill="#fff"
@@ -609,6 +593,38 @@ const styles = StyleSheet.create({
   circularProgressContainer: {
     alignItems: 'center',
     marginVertical: 5,
+  },
+  circularProgressInner: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  circularProgressRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+  },
+  circularProgressNumber: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#4A90E2',
+  },
+  circularProgressGoalNumber: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#666',
+  },
+  circularProgressUnit: {
+    fontSize: 12,
+    color: '#888',
+  },
+  circularProgressOf: {
+    fontSize: 12,
+    color: '#888',
+    marginVertical: 2,
   },
   chartContainer: {
     backgroundColor: '#FFFFFF',
