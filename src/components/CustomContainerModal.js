@@ -21,11 +21,11 @@ import { getContainerIcon } from './WaterIcons';
 const { width, height } = Dimensions.get('window');
 
 const CONTAINER_TYPES = [
-  { id: 'wine-outline', name: 'Glass', label: 'Glass' },
-  { id: 'bottle-outline', name: 'Bottle', label: 'Bottle' },
-  { id: 'cafe-outline', name: 'Mug', label: 'Mug' },
-  { id: 'flask-outline', name: 'Large Bottle', label: 'Large' },
-  { id: 'library-outline', name: 'Jug', label: 'Jug' },
+  { id: 'wine-outline',  name: 'Glass',  label: 'Glass'  },
+  { id: 'water-outline', name: 'Bottle', label: 'Bottle' },
+  { id: 'cafe-outline',  name: 'Mug',    label: 'Mug'    },
+  { id: 'flask-outline', name: 'Large',  label: 'Large'  },
+  { id: 'beer-outline',  name: 'Jug',    label: 'Jug'    },
   { id: 'ellipse-outline', name: 'Custom', label: 'Custom' },
 ];
 

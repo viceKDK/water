@@ -177,8 +177,6 @@ const HomeScreen = () => {
 
       {/* Quick Log Panel */}
       <View style={styles.quickLogPanel}>
-        <Text style={styles.quickLogTitle}>Quick Log</Text>
-        
         <View style={styles.containerButtonsRow}>
           {containers.slice(0, 3).map((container) => (
             <ContainerButton
@@ -271,19 +269,8 @@ const styles = StyleSheet.create({
     height: height * 0.45,
   },
   quickLogPanel: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 25,
-    borderTopRightRadius: 25,
     paddingHorizontal: 20,
-    paddingVertical: 25,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: -2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
+    paddingVertical: 16,
   },
   quickLogTitle: {
     fontSize: 20,
